@@ -39,6 +39,17 @@ export interface ExportColumn {
   value: (log: LogEntry) => string;
 }
 
+export const downloadFile = (content: string, filename: string, type: string) => {
+  const blob = new Blob([content], { type: `${type};charset=utf-8;` });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 export const exportToCSV = (logs: LogEntry[], columns?: ExportColumn[]) => {
   // Default columns if not provided
   const defCols: ExportColumn[] = [
@@ -67,12 +78,28 @@ export const exportToCSV = (logs: LogEntry[], columns?: ExportColumn[]) => {
   });
 
   const csvContent = [headers, ...rows].join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `nurturetrack_export_${format(new Date(), 'yyyyMMdd')}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  downloadFile(csvContent, `nurturetrack_export_${format(new Date(), 'yyyyMMdd')}.csv`, 'text/csv');
+};
+
+// Unit Conversions
+export const kgToLb = (kg: number): number => kg * 2.20462;
+export const lbToKg = (lb: number): number => lb / 2.20462;
+export const cmToIn = (cm: number): number => cm / 2.54;
+export const inToCm = (inches: number): number => inches * 2.54;
+
+export const formatWeight = (kg: number, unit: 'kg' | 'lb'): string => {
+  if (unit === 'kg') return `${kg.toFixed(2)}kg`;
+  return `${kgToLb(kg).toFixed(2)}lb`;
+};
+
+export const formatLength = (cm: number, unit: 'cm' | 'in'): string => {
+  if (unit === 'cm') return `${cm.toFixed(1)}cm`;
+  return `${cmToIn(cm).toFixed(1)}in`;
+};
+
+export const getAgeInMonths = (birthDate: number, targetDate: number = Date.now()): number => {
+    // Precise calculation including partial months for smoother plotting
+    const diff = targetDate - birthDate;
+    const days = diff / (1000 * 60 * 60 * 24);
+    return days / 30.437; // Average days per month
 };

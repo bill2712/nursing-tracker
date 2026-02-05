@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MilkIcon, MoonIcon, ClockIcon, PencilIcon } from './Icons';
+import { MilkIcon, MoonIcon, ClockIcon, PencilIcon, PumpIcon, FoodIcon } from './Icons';
 import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
 import { formatTimer, generateId, formatTimeAgo } from '../utils';
+import { getAverageWakeWindow, predictNextNap } from '../services/predictionService';
 
 interface TrackerProps {
   appState: AppState;
@@ -20,7 +21,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
   const [manualType, setManualType] = useState<ActivityType>('feeding');
   const [manualStartTime, setManualStartTime] = useState('');
   const [manualEndTime, setManualEndTime] = useState('');
-  const [manualDetails, setManualDetails] = useState<LogEntry['details']>({ feedingType: 'nursing', side: 'left' });
+  const [manualDetails, setManualDetails] = useState<LogEntry['details']>({ feedingType: 'nursing', side: 'left', foods: [] });
+  const [newFoodInput, setNewFoodInput] = useState('');
 
   // Timer Tick
   useEffect(() => {
@@ -60,6 +62,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       feeding: sorted.find(l => l.type === 'feeding'),
       sleep: sorted.find(l => l.type === 'sleep'),
       diaper: sorted.find(l => l.type === 'diaper'),
+      pumping: sorted.find(l => l.type === 'pumping'),
+      solids: sorted.find(l => l.type === 'solids'),
     };
   }, [appState.logs]);
 
@@ -71,7 +75,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         startTime: Date.now(),
         ignoredDurationMs: 0,
         details: {
-          side: type === 'feeding' ? 'left' : undefined, 
+          side: (type === 'feeding' || type === 'pumping') ? 'left' : undefined, 
           feedingType: type === 'feeding' ? 'nursing' : undefined
         }
       }
@@ -271,7 +275,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     setManualStartTime(localIso);
     setManualEndTime(localIso);
     setManualType('feeding');
-    setManualDetails({ feedingType: 'nursing', side: 'left' });
+    setManualDetails({ feedingType: 'nursing', side: 'left', foods: [] });
+    setNewFoodInput('');
     setShowManualModal(true);
   };
 
@@ -299,6 +304,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
   // --- Active Timer View ---
   if (appState.activeTimer) {
     const isFeeding = appState.activeTimer.type === 'feeding';
+    const isPumping = appState.activeTimer.type === 'pumping';
     const isPaused = !!appState.activeTimer.pauseStartTime;
     const isSnoozed = !!appState.activeTimer.snoozeEndTime;
     
@@ -308,14 +314,19 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
           <div className={`absolute -inset-4 rounded-full opacity-30 transition-all duration-500
              ${isSnoozed ? 'bg-amber-400 animate-pulse' : 
                isPaused ? 'bg-slate-300 dark:bg-slate-700' : 
-               (isFeeding ? 'bg-pink-300 dark:bg-pink-800 animate-pulse' : 'bg-indigo-300 dark:bg-indigo-800 animate-pulse')}
+               (isFeeding ? 'bg-pink-300 dark:bg-pink-800 animate-pulse' : 
+                (isPumping ? 'bg-cyan-300 dark:bg-cyan-800 animate-pulse' :
+                'bg-indigo-300 dark:bg-indigo-800 animate-pulse'))}
           `}></div>
           <div className={`relative p-8 rounded-full border-4 transition-all duration-500 flex items-center justify-center
              ${isSnoozed ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/50' : 
                isPaused ? 'border-slate-400 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 grayscale' : 
-               (isFeeding ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/40' : 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40')}
+               (isFeeding ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/40' : 
+                (isPumping ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-900/40' :
+                'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40'))}
           `}>
-             {isFeeding ? <MilkIcon className="w-16 h-16 text-pink-500" /> : <MoonIcon className="w-16 h-16 text-indigo-500" />}
+             {isFeeding ? <MilkIcon className="w-16 h-16 text-pink-500" /> : 
+              (isPumping ? <PumpIcon className="w-16 h-16 text-cyan-500" /> : <MoonIcon className="w-16 h-16 text-indigo-500" />)}
              
              {/* Visual Overlay for Paused/Snoozed */}
              {(isPaused || isSnoozed) && (
@@ -450,7 +461,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                 </button>
                 <button 
                     onClick={stopTimer}
-                    className={`flex-1 py-4 rounded-xl font-bold text-lg text-white shadow-lg transition-transform active:scale-95 ${isFeeding ? 'bg-pink-500 hover:bg-pink-600 shadow-pink-200 dark:shadow-none' : 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-200 dark:shadow-none'}`}
+                    className={`flex-1 py-4 rounded-xl font-bold text-lg text-white shadow-lg transition-transform active:scale-95 ${isFeeding ? 'bg-pink-500 hover:bg-pink-600 shadow-pink-200 dark:shadow-none' : (isPumping ? 'bg-cyan-500 hover:bg-cyan-600 shadow-cyan-200 dark:shadow-none' : 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-200 dark:shadow-none')}`}
                 >
                     Finish
                 </button>
@@ -504,7 +515,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       </header>
 
       {/* Last Activity Dashboard */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Last Fed</span>
            <span className="text-sm font-bold text-pink-600 dark:text-pink-400">
@@ -524,6 +535,29 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
            </span>
         </div>
       </div>
+
+
+      {/* Prediction Widget */}
+      {(() => {
+        const avgWakeWindow = getAverageWakeWindow(appState.logs);
+        const prediction = predictNextNap(appState.logs, avgWakeWindow);
+        if (prediction.time && avgWakeWindow > 0) {
+            const timeStr = new Date(prediction.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            return (
+                <div className="bg-gradient-to-r from-indigo-500 to-violet-600 rounded-xl p-4 shadow-lg shadow-indigo-200 dark:shadow-none text-white flex justify-between items-center">
+                    <div>
+                        <p className="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1">Estimated Next Nap</p>
+                        <p className="text-2xl font-bold">{timeStr}</p>
+                        <p className="text-[10px] text-indigo-200 mt-1 opacity-80">{prediction.reason}</p>
+                    </div>
+                    <div className="bg-white/20 p-3 rounded-full">
+                        <MoonIcon className="w-6 h-6 text-white" />
+                    </div>
+                </div>
+            );
+        }
+        return null;
+      })()}
 
       <div className="grid grid-cols-1 gap-6">
         <button 
@@ -623,6 +657,14 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                       onClick={() => setManualType('sleep')}
                       className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'sleep' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                     >Sleep</button>
+                    <button 
+                      onClick={() => setManualType('pumping')}
+                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'pumping' ? 'bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                    >Pumping</button>
+                    <button 
+                      onClick={() => setManualType('solids')}
+                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'solids' ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                    >Solids</button>
                  </div>
                  
                  {/* Special "All Day Sleep" Shortcut */}
@@ -672,7 +714,67 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                      </div>
                  )}
 
-                 {/* Detailed Inputs based on Type */}
+                 {manualType === 'solids' && (
+                    <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <div className="space-y-2">
+                             <div className="flex flex-wrap gap-2 mb-2">
+                                {manualDetails.foods && manualDetails.foods.map((food, i) => (
+                                    <span key={i} className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                                        {food}
+                                        <button 
+                                            onClick={() => setManualDetails(p => ({ ...p, foods: p.foods?.filter((_, idx) => idx !== i) }))}
+                                            className="hover:text-orange-900 dark:hover:text-orange-100"
+                                        >
+                                            ×
+                                        </button>
+                                    </span>
+                                ))}
+                             </div>
+                             <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Add food (e.g. 'Carrot')"
+                                    className="flex-1 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const val = e.currentTarget.value.trim();
+                                            if (val) {
+                                                setManualDetails(p => ({ ...p, foods: [...(p.foods || []), val] }));
+                                                e.currentTarget.value = '';
+                                            }
+                                        }
+                                    }}
+                                />
+                                <button
+                                    onClick={(e) => {
+                                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                        const val = input.value.trim();
+                                        if (val) {
+                                            setManualDetails(p => ({ ...p, foods: [...(p.foods || []), val] }));
+                                            input.value = '';
+                                        }
+                                    }}
+                                    className="px-3 py-2 bg-orange-500 text-white rounded-lg font-bold text-sm"
+                                >
+                                    Add
+                                </button>
+                             </div>
+                             <p className="text-[10px] text-slate-400">Press Enter to add multiple items</p>
+                        </div>
+
+                        <div className="space-y-1">
+                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Reaction?</label>
+                           <input 
+                             type="text"
+                             placeholder="e.g. Rash, Fussiness (Optional)"
+                             value={manualDetails.reaction || ''}
+                             onChange={e => setManualDetails(p => ({ ...p, reaction: e.target.value }))}
+                             className="w-full p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm"
+                           />
+                        </div>
+                    </div>
+                 )}
+
                  {manualType === 'feeding' && (
                     <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
                         <div className="flex justify-center space-x-3">

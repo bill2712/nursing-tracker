@@ -1,7 +1,26 @@
-export type ActivityType = 'feeding' | 'sleep' | 'diaper';
+export type ActivityType = 'feeding' | 'sleep' | 'diaper' | 'pumping' | 'solids';
 
 export type FeedingType = 'nursing' | 'bottle';
 export type FeedingSide = 'left' | 'right' | 'both';
+
+export type MeasurementUnit = 'cm' | 'in' | 'kg' | 'lb';
+
+export interface GrowthEntry {
+  id: string;
+  date: number; // timestamp
+  weight?: number; // always stored in kg
+  length?: number; // always stored in cm
+  headCircumference?: number; // always stored in cm
+  notes?: string;
+}
+
+export interface BabyProfile {
+  name: string;
+  gender: 'boy' | 'girl';
+  birthDate: number; // timestamp
+  weightUnit: 'kg' | 'lb';
+  lengthUnit: 'cm' | 'in';
+}
 
 export interface LogEntry {
   id: string;
@@ -14,6 +33,8 @@ export interface LogEntry {
     side?: FeedingSide;
     amountMl?: number;
     diaperState?: 'wet' | 'dirty' | 'mixed';
+    foods?: string[];
+    reaction?: string;
     notes?: string;
   };
 }
@@ -46,6 +67,8 @@ export interface AppState {
   reminders: ReminderConfig;
   sleepGoal: SleepGoal;
   darkMode: boolean;
+  growth: GrowthEntry[];
+  babyProfile: BabyProfile;
 }
 
 export interface TimerDisplayProps {

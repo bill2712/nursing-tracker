@@ -4,6 +4,8 @@ import { AppState } from '../types';
 import { SparklesIcon } from './Icons';
 import { getGeminiInsights } from '../services/geminiService';
 import { format, startOfDay, endOfDay, isWithinInterval, subDays, eachDayOfInterval } from 'date-fns';
+import { getAverageWakeWindow } from '../services/predictionService';
+import { formatDuration } from '../utils';
 
 interface AnalysisProps {
   appState: AppState;
@@ -25,11 +27,17 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
   const feedsTotal = todaysLogs.filter(l => l.type === 'feeding').length;
   const diaperTotal = todaysLogs.filter(l => l.type === 'diaper').length;
+  const pumpingTotal = todaysLogs.filter(l => l.type === 'pumping').length;
+  const pumpingVolume = todaysLogs
+    .filter(l => l.type === 'pumping')
+    .reduce((acc, curr) => acc + (curr.details.amountMl || 0), 0);
 
   // Calculate Goal Progress
   const sleepTotalHours = sleepTotal / 3600;
   const goalTotalHours = (appState.sleepGoal.hours || 0) + (appState.sleepGoal.minutes || 0) / 60;
   const sleepProgress = goalTotalHours > 0 ? Math.min(100, (sleepTotalHours / goalTotalHours) * 100) : 0;
+  
+  const avgWakeWindowMinutes = getAverageWakeWindow(appState.logs);
 
   const handleGetInsight = async () => {
     setLoading(true);
@@ -43,6 +51,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
     { name: 'Feed', value: feedsTotal, color: '#ec4899' },
     { name: 'Sleep (hrs)', value: Math.round(sleepTotalHours), color: '#6366f1' },
     { name: 'Diaper', value: diaperTotal, color: '#10b981' },
+    { name: 'Pump', value: pumpingTotal, color: '#06b6d4' },
   ];
 
   // Sleep Trend Chart (Last 7 Days)
@@ -93,7 +102,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       </header>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
           <div className="text-2xl font-bold text-pink-500">{feedsTotal}</div>
           <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Feeds</div>
@@ -110,6 +119,10 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
           <div className="text-2xl font-bold text-emerald-500">{diaperTotal}</div>
           <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Changes</div>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
+          <div className="text-2xl font-bold text-cyan-500">{pumpingVolume}ml</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Pumped</div>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppState, LogEntry } from '../types';
-import { exportToCSV } from '../utils';
+import { exportToCSV, downloadFile } from '../utils';
+import { format } from 'date-fns';
 
 interface SettingsProps {
   appState: AppState;
@@ -18,7 +19,58 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
     });
   };
 
-  const handleImportJson = () => {
+  const handleDownloadBackup = () => {
+    const data = JSON.stringify(appState.logs, null, 2);
+    downloadFile(data, `nurturetrack-backup-${format(new Date(), 'yyyy-MM-dd-HHmm')}.json`, 'application/json');
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsedLogs = JSON.parse(text);
+        
+        if (Array.isArray(parsedLogs)) {
+             if(confirm(`Found ${parsedLogs.length} records in file. data. Merge with current history?`)) {
+                // Sanitize IDs
+                const sanitizedLogs = parsedLogs.map((l: any) => ({
+                    ...l,
+                    id: String(l.id)
+                })) as LogEntry[];
+
+                // Merge Logic
+                const currentIds = new Set(appState.logs.map(l => String(l.id)));
+                const newLogs = sanitizedLogs.filter(l => !currentIds.has(l.id));
+
+                if (newLogs.length === 0) {
+                    alert("No new data found to import (all records already exist).");
+                    return;
+                }
+
+                setAppState(prev => ({ 
+                    ...prev, 
+                    logs: [...prev.logs, ...newLogs].sort((a, b) => b.startTime - a.startTime) 
+                }));
+                alert(`Successfully imported ${newLogs.length} new records!`);
+             }
+        } else {
+            alert("Invalid file format. Expected a JSON array of logs.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to parse file. Is it a valid JSON backup?");
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleManualImportJson = () => {
     try {
       const parsedLogs = JSON.parse(importText);
       if (Array.isArray(parsedLogs)) {
@@ -213,41 +265,66 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
       </section>
 
       <section className="space-y-4">
-        <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Partner Sharing</h3>
+        <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Partner Sharing (File Sync)</h3>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-           Since this app respects your privacy and stores data on your device, use these tools to sync with a partner manually.
+           Download a backup file and send it to your partner to keep devices in sync.
         </p>
 
         <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 space-y-4">
+            {/* Download Backup */}
             <button 
-                onClick={handleExportJson}
-                className="w-full py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-semibold rounded-lg border border-blue-100 dark:border-blue-900 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                onClick={handleDownloadBackup}
+                className="w-full py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-semibold rounded-lg border border-indigo-100 dark:border-indigo-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 flex items-center justify-center space-x-2"
             >
-                Copy Data to Share
+                <span>Download Backup File</span>
             </button>
             
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+            {/* Upload Backup */}
+            <div className="relative">
+                <input 
+                    type="file" 
+                    accept=".json"
+                    onChange={handleFileUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
                 <button 
-                    onClick={() => setShowImport(!showImport)}
-                    className="text-sm text-slate-500 dark:text-slate-400 font-medium underline"
+                    className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white font-semibold rounded-lg hover:bg-slate-900 dark:hover:bg-slate-600 pointer-events-none"
                 >
-                    {showImport ? 'Hide Import' : 'I have data to import'}
+                    Restore / Merge from File
                 </button>
+            </div>
+
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+                <p className="text-xs text-slate-400 mb-2 text-center">- OR Legacy Plain Text -</p>
+                <div className="flex space-x-2">
+                    <button 
+                        onClick={handleExportJson}
+                        className="flex-1 py-2 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-lg"
+                    >
+                        Copy Text
+                    </button>
+                    <button 
+                        onClick={() => setShowImport(!showImport)}
+                        className="flex-1 py-2 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-lg"
+                    >
+                        {showImport ? 'Hide Text Import' : 'Paste Text'}
+                    </button>
+                </div>
                 
                 {showImport && (
-                    <div className="mt-3 space-y-3">
+                    <div className="mt-3 space-y-3 animate-fade-in">
                         <textarea 
                             className="w-full h-32 p-3 text-xs font-mono border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-slate-300"
-                            placeholder="Paste data from partner here..."
+                            placeholder="Paste JSON text data here..."
                             value={importText}
                             onChange={(e) => setImportText(e.target.value)}
                         />
                         <button 
-                            onClick={handleImportJson}
+                            onClick={handleManualImportJson}
                             disabled={!importText}
                             className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white font-semibold rounded-lg hover:bg-slate-900 dark:hover:bg-slate-600 disabled:opacity-50"
                         >
-                            Import Data
+                            Import Text Data
                         </button>
                     </div>
                 )}

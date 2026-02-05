@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { format, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
 import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
 import { formatDuration, exportToCSV, ExportColumn, generateId } from '../utils';
-import { TrashIcon, MilkIcon, MoonIcon, BabyIcon, PencilIcon } from './Icons';
+import { TrashIcon, MilkIcon, MoonIcon, BabyIcon, PencilIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon } from './Icons';
+import Timeline from './Timeline';
 
 interface HistoryProps {
   logs: LogEntry[];
@@ -18,6 +19,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   const [filterStart, setFilterStart] = useState('');
   const [filterEnd, setFilterEnd] = useState('');
   const [filterType, setFilterType] = useState<ActivityType | 'all'>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list');
 
   // Export Modal State
   const [showExportModal, setShowExportModal] = useState(false);
@@ -44,6 +46,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   const [editEndTime, setEditEndTime] = useState('');
   const [editType, setEditType] = useState<ActivityType>('feeding');
   const [editDetails, setEditDetails] = useState<LogEntry['details']>({});
+  const [newFoodInput, setNewFoodInput] = useState('');
 
   // Clear delete confirmation state when clicking elsewhere
   useEffect(() => {
@@ -226,6 +229,22 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
             )}
         </div>
       </header>
+        
+      {/* View Toggle */}
+      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+            <button 
+            onClick={() => setViewMode('list')}
+            className={`flex-1 py-1.5 flex justify-center items-center rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-pink-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            >
+            <ListIcon className="w-5 h-5" />
+            </button>
+            <button 
+            onClick={() => setViewMode('timeline')}
+            className={`flex-1 py-1.5 flex justify-center items-center rounded-md transition-colors ${viewMode === 'timeline' ? 'bg-white dark:bg-slate-700 text-pink-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            >
+            <CalendarIcon className="w-5 h-5" />
+            </button>
+      </div>
 
       {/* Filters */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 space-y-4">
@@ -268,7 +287,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase mb-2">Activity Type</p>
              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                {(['all', 'feeding', 'sleep', 'diaper'] as const).map(t => (
+                {(['all', 'feeding', 'sleep', 'diaper', 'pumping', 'solids'] as const).map(t => (
                     <button
                         key={t}
                         onClick={() => setFilterType(t)}
@@ -296,64 +315,85 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
               <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 sticky top-0 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur py-2 z-10 border-b border-slate-50/0">
                 {format(new Date(date), 'EEEE, MMMM do')}
               </h3>
-              <div className="space-y-3">
-                {groupedLogs[date].map(log => (
-                  <div 
-                    key={log.id} 
-                    onClick={() => handleEditClick(log)}
-                    className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between group relative overflow-hidden cursor-pointer active:bg-slate-50 dark:active:bg-slate-800 transition-colors"
-                  >
-                    <div className="flex items-center space-x-4 flex-1 min-w-0">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                        log.type === 'feeding' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400' :
-                        log.type === 'sleep' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' :
-                        'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-                      }`}>
-                         {log.type === 'feeding' && <MilkIcon className="w-5 h-5" />}
-                         {log.type === 'sleep' && <MoonIcon className="w-5 h-5" />}
-                         {log.type === 'diaper' && <BabyIcon className="w-5 h-5" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize flex items-center gap-2 flex-wrap">
-                          {log.type}
-                          {log.durationSeconds && log.durationSeconds > 0 && (
-                            <span className={`text-xs px-2 py-0.5 rounded font-bold ${log.type === 'sleep' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-                                {formatDuration(log.durationSeconds)}
-                            </span>
-                          )}
-                          {log.details.side && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.side}</span>}
-                          {log.details.amountMl && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.amountMl}ml</span>}
-                          {log.details.diaperState && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.diaperState}</span>}
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
-                          {format(new Date(log.startTime), 'h:mm a')} 
-                          {log.endTime && ` - ${format(new Date(log.endTime), 'h:mm a')}`}
-                        </div>
-                        {log.details.notes && (
-                          <div className="text-xs text-slate-400 dark:text-slate-500 mt-1 italic truncate">
-                            "{log.details.notes}"
+              
+              {viewMode === 'list' ? (
+                  <div className="space-y-3">
+                    {groupedLogs[date].map(log => (
+                      <div 
+                        key={log.id} 
+                        onClick={() => handleEditClick(log)}
+                        className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between group relative overflow-hidden cursor-pointer active:bg-slate-50 dark:active:bg-slate-800 transition-colors"
+                      >
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                            log.type === 'feeding' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400' :
+                            log.type === 'sleep' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' :
+                            log.type === 'pumping' ? 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400' :
+                            log.type === 'solids' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' :
+                            'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                          }`}>
+                             {log.type === 'feeding' && <MilkIcon className="w-5 h-5" />}
+                             {log.type === 'sleep' && <MoonIcon className="w-5 h-5" />}
+                             {log.type === 'pumping' && <PumpIcon className="w-5 h-5" />}
+                             {log.type === 'solids' && <FoodIcon className="w-5 h-5" />}
+                             {log.type === 'diaper' && <BabyIcon className="w-5 h-5" />}
                           </div>
-                        )}
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize flex items-center gap-2 flex-wrap">
+                              {log.type}
+                              {log.durationSeconds && log.durationSeconds > 0 && (
+                                <span className={`text-xs px-2 py-0.5 rounded font-bold ${log.type === 'sleep' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                                    {formatDuration(log.durationSeconds)}
+                                </span>
+                              )}
+                              {log.details.side && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.side}</span>}
+                              {log.details.amountMl && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.amountMl}ml</span>}
+                              {log.details.diaperState && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.diaperState}</span>}
+                              {log.details.foods && log.details.foods.map((food, i) => (
+                                  <span key={i} className="text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-normal">{food}</span>
+                              ))}
+                              {log.details.reaction && <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded font-bold border border-red-100 dark:border-red-900/50">Reaction: {log.details.reaction}</span>}
+                              {log.details.foods && log.details.foods.map((food, i) => (
+                                  <span key={i} className="text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-normal">{food}</span>
+                              ))}
+                              {log.details.reaction && <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded font-bold border border-red-100 dark:border-red-900/50">Reaction: {log.details.reaction}</span>}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
+                              {format(new Date(log.startTime), 'h:mm a')} 
+                              {log.endTime && ` - ${format(new Date(log.endTime), 'h:mm a')}`}
+                            </div>
+                            {log.details.notes && (
+                              <div className="text-xs text-slate-400 dark:text-slate-500 mt-1 italic truncate">
+                                "{log.details.notes}"
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <button 
+                          onClick={(e) => handleDeleteClick(e, log.id)}
+                          className={`ml-3 h-10 rounded-full flex items-center justify-center transition-all duration-200 z-20 ${
+                            deletingId === String(log.id)
+                              ? 'bg-red-500 text-white w-24 px-2' 
+                              : 'w-10 text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                          }`}
+                        >
+                          {deletingId === String(log.id) ? (
+                            <span className="text-xs font-bold animate-fade-in whitespace-nowrap">Confirm</span>
+                          ) : (
+                            <TrashIcon className="w-5 h-5 pointer-events-none" />
+                          )}
+                        </button>
                       </div>
-                    </div>
-                    
-                    <button 
-                      onClick={(e) => handleDeleteClick(e, log.id)}
-                      className={`ml-3 h-10 rounded-full flex items-center justify-center transition-all duration-200 z-20 ${
-                        deletingId === String(log.id)
-                          ? 'bg-red-500 text-white w-24 px-2' 
-                          : 'w-10 text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-                      }`}
-                    >
-                      {deletingId === String(log.id) ? (
-                        <span className="text-xs font-bold animate-fade-in whitespace-nowrap">Confirm</span>
-                      ) : (
-                        <TrashIcon className="w-5 h-5 pointer-events-none" />
-                      )}
-                    </button>
+                    ))}
                   </div>
-                ))}
-              </div>
+              ) : (
+                  <Timeline 
+                    logs={groupedLogs[date]} 
+                    dayString={date} 
+                    onEdit={handleEditClick} 
+                  />
+              )}
             </div>
           ))}
         </div>
@@ -413,7 +453,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
             
             <div className="p-6 space-y-6 overflow-y-auto">
                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                  {['feeding', 'sleep', 'diaper'].map((t) => (
+                  {['feeding', 'sleep', 'diaper', 'pumping', 'solids'].map((t) => (
                       <button 
                         key={t}
                         onClick={() => {
@@ -495,6 +535,93 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                               <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
                            </div>
                         )}
+                   </div>
+               )}
+
+               {editType === 'pumping' && (
+                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex justify-center space-x-2">
+                        {(['left', 'right', 'both'] as const).map(side => (
+                            <button
+                              key={side}
+                              onClick={() => setEditDetails(p => ({ ...p, side }))}
+                              className={`capitalize px-3 py-1.5 rounded-full text-sm border ${editDetails.side === side ? 'bg-cyan-500 text-white border-cyan-500' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}
+                            >
+                              {side}
+                            </button>
+                        ))}
+                      </div>
+                       <div className="flex justify-center items-center space-x-2">
+                          <input 
+                            type="number" 
+                            placeholder="Amount" 
+                            value={editDetails.amountMl || ''}
+                            className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
+                            onChange={e => setEditDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
+                          />
+                          <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
+                       </div>
+                  </div>
+               )}
+
+               {editType === 'solids' && (
+                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                        <div className="space-y-2">
+                             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Foods</label>
+                             <div className="flex flex-wrap gap-2 mb-2">
+                                {editDetails.foods && editDetails.foods.map((food, i) => (
+                                    <span key={i} className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                                        {food}
+                                        <button 
+                                            onClick={() => setEditDetails(p => ({ ...p, foods: p.foods?.filter((_, idx) => idx !== i) }))}
+                                            className="hover:text-orange-900 dark:hover:text-orange-100"
+                                        >
+                                            ×
+                                        </button>
+                                    </span>
+                                ))}
+                             </div>
+                             <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Add food"
+                                    className="flex-1 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const val = e.currentTarget.value.trim();
+                                            if (val) {
+                                                setEditDetails(p => ({ ...p, foods: [...(p.foods || []), val] }));
+                                                e.currentTarget.value = '';
+                                            }
+                                        }
+                                    }}
+                                />
+                                <button
+                                    onClick={(e) => {
+                                        const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                        const val = input.value.trim();
+                                        if (val) {
+                                            setEditDetails(p => ({ ...p, foods: [...(p.foods || []), val] }));
+                                            input.value = '';
+                                        }
+                                    }}
+                                    className="px-3 py-2 bg-orange-500 text-white rounded-lg font-bold text-sm"
+                                >
+                                    Add
+                                </button>
+                             </div>
+                        </div>
+
+                        <div className="space-y-1">
+                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Reaction?</label>
+                           <input 
+                             type="text"
+                             placeholder="e.g. Rash"
+                             value={editDetails.reaction || ''}
+                             onChange={e => setEditDetails(p => ({ ...p, reaction: e.target.value }))}
+                             className="w-full p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm"
+                           />
+                        </div>
                    </div>
                )}
 

@@ -5,9 +5,10 @@ import Tracker from './components/Tracker';
 import History from './components/History';
 import Analysis from './components/Analysis';
 import Settings from './components/Settings';
-import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon } from './components/Icons';
+import Growth from './components/Growth';
+import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, RulerIcon } from './components/Icons';
 
-type View = 'tracker' | 'history' | 'analysis' | 'settings';
+type View = 'tracker' | 'history' | 'analysis' | 'growth' | 'settings';
 
 const App: React.FC = () => {
   // Load initial state from local storage or default
@@ -28,7 +29,15 @@ const App: React.FC = () => {
             lastNotified: {} 
           },
           sleepGoal: parsed.sleepGoal || { hours: 14, minutes: 0 },
-          darkMode: parsed.darkMode || false
+          darkMode: parsed.darkMode || false,
+          growth: parsed.growth || [],
+          babyProfile: parsed.babyProfile || {
+              name: 'Baby',
+              gender: 'boy',
+              birthDate: Date.now(),
+              weightUnit: 'kg',
+              lengthUnit: 'cm'
+          }
         };
       } catch (e) {
         console.error("Failed to parse saved state");
@@ -39,7 +48,15 @@ const App: React.FC = () => {
       activeTimer: null,
       reminders: { enabled: false, feeding: 0, sleep: 0, diaper: 0, lastNotified: {} },
       sleepGoal: { hours: 14, minutes: 0 },
-      darkMode: false
+      darkMode: false,
+      growth: [],
+      babyProfile: {
+          name: 'Baby',
+          gender: 'boy',
+          birthDate: Date.now(),
+          weightUnit: 'kg',
+          lengthUnit: 'cm'
+      }
     };
   });
 
@@ -147,6 +164,8 @@ const App: React.FC = () => {
         return <History logs={appState.logs} setAppState={setAppState} />;
       case 'analysis':
         return <Analysis appState={appState} />;
+      case 'growth':
+        return <Growth appState={appState} setAppState={setAppState} />;
       case 'settings':
         return <Settings appState={appState} setAppState={setAppState} />;
       default:
@@ -179,6 +198,12 @@ const App: React.FC = () => {
               onClick={() => setCurrentView('analysis')} 
               icon={<BarChartIcon />} 
               label="Insights" 
+            />
+            <NavButton 
+              active={currentView === 'growth'} 
+              onClick={() => setCurrentView('growth')} 
+              icon={<RulerIcon />} 
+              label="Growth" 
             />
             <NavButton 
               active={currentView === 'settings'} 
