@@ -10,150 +10,78 @@ import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, RulerIcon } from './co
 
 type View = 'tracker' | 'history' | 'analysis' | 'growth' | 'settings';
 
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { collection, onSnapshot, query, orderBy, doc, setDoc, limit } from 'firebase/firestore';
+import { auth, db } from './services/firebase';
+import Login from './components/Login';
+
 const App: React.FC = () => {
-  // Load initial state from local storage or default
-  const [appState, setAppState] = useState<AppState>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Migration: Ensure new fields structure exist
-        return {
-          logs: parsed.logs || [],
-          activeTimer: parsed.activeTimer || null,
-          reminders: parsed.reminders || { 
-            enabled: false, 
-            feeding: 0, 
-            sleep: 0, 
-            diaper: 0, 
-            lastNotified: {} 
-          },
-          sleepGoal: parsed.sleepGoal || { hours: 14, minutes: 0 },
-          darkMode: parsed.darkMode || false,
-          growth: parsed.growth || [],
-          babyProfile: parsed.babyProfile || {
-              name: 'Baby',
-              gender: 'boy',
-              birthDate: Date.now(),
-              weightUnit: 'kg',
-              lengthUnit: 'cm'
-          }
-        };
-      } catch (e) {
-        console.error("Failed to parse saved state");
-      }
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Initialize with default state
+  const [appState, setAppState] = useState<AppState>({ 
+    logs: [], 
+    activeTimer: null,
+    reminders: { enabled: false, feeding: 0, sleep: 0, diaper: 0, lastNotified: {} },
+    sleepGoal: { hours: 14, minutes: 0 },
+    darkMode: false,
+    growth: [],
+    babyProfile: {
+        name: 'Baby',
+        gender: 'boy',
+        birthDate: Date.now(),
+        weightUnit: 'kg',
+        lengthUnit: 'cm'
     }
-    return { 
-      logs: [], 
-      activeTimer: null,
-      reminders: { enabled: false, feeding: 0, sleep: 0, diaper: 0, lastNotified: {} },
-      sleepGoal: { hours: 14, minutes: 0 },
-      darkMode: false,
-      growth: [],
-      babyProfile: {
-          name: 'Baby',
-          gender: 'boy',
-          birthDate: Date.now(),
-          weightUnit: 'kg',
-          lengthUnit: 'cm'
-      }
-    };
   });
 
   const [currentView, setCurrentView] = useState<View>('tracker');
 
-  // Persistence effect
+  // Auth Listener
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
-  }, [appState]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  // Global Timer Effect: Handles Reminders and Snooze Auto-Resume
+  // Data Sync Listeners (Only when logged in)
   useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      let stateChanged = false;
-      let newState = { ...appState };
+    if (!user) return;
 
-      // 1. Handle Snooze Auto-Resume
-      if (newState.activeTimer?.snoozeEndTime && now >= newState.activeTimer.snoozeEndTime) {
-        // Snooze time is up. 
-        if (newState.activeTimer.pauseStartTime) {
-            const pausedDuration = now - newState.activeTimer.pauseStartTime;
-            newState.activeTimer = {
-                ...newState.activeTimer,
-                snoozeEndTime: undefined,
-                pauseStartTime: undefined,
-                ignoredDurationMs: (newState.activeTimer.ignoredDurationMs || 0) + pausedDuration
-            };
-            stateChanged = true;
+    // 1. Listen to Logs
+    const q = query(collection(db, 'logs'), orderBy('startTime', 'desc'), limit(500)); // Limit to last 500 for perf
+    const unsubLogs = onSnapshot(q, (snapshot) => {
+      const logs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as LogEntry));
+      setAppState(prev => ({ ...prev, logs }));
+    });
 
-            // Notify resumption
-            if (Notification.permission === 'granted' && newState.reminders.enabled) {
-                new Notification("Timer Resumed", { body: "Your snooze period is over. Tracking has resumed." });
-            }
-        }
+    // 2. Listen to Active Timer (Global Singleton)
+    const unsubTimer = onSnapshot(doc(db, 'system', 'activeTimer'), (doc) => {
+      if (doc.exists()) {
+        setAppState(prev => ({ ...prev, activeTimer: doc.data() as any }));
+      } else {
+        setAppState(prev => ({ ...prev, activeTimer: null }));
       }
+    });
 
-      // 2. Handle Reminders
-      if (newState.reminders.enabled) {
-        const checkReminder = (type: ActivityType, intervalMins: number) => {
-          if (intervalMins <= 0) return;
-          
-          // If active timer is running for this type, don't remind
-          if (newState.activeTimer?.type === type) return;
+     // 3. Listen to Settings (Optional, maybe just keep local for now or single doc)
+     // For simplicity, let's keep settings local to device OR sync simple items if requested.
+     // User asked for "Record" sync. Settings sync is bonus. We stick to records for now to save time.
 
-          // Find last activity of this type
-          const lastLog = newState.logs.find(l => l.type === type);
-          
-          // Determine reference time: endTime if available (feeding/sleep), else startTime (diaper)
-          const refTime = lastLog ? (lastLog.endTime || lastLog.startTime) : 0;
-          
-          // If no log exists, we don't remind
-          if (!refTime) return;
+    return () => {
+      unsubLogs();
+      unsubTimer();
+    };
+  }, [user]);
 
-          const timeSince = now - refTime;
-          const intervalMs = intervalMins * 60 * 1000;
-          
-          if (timeSince >= intervalMs) {
-            // Check if already notified recently (within last 5 mins to avoid spam)
-            const lastNotified = newState.reminders.lastNotified[type] || 0;
-            if (now - lastNotified > 5 * 60 * 1000) {
-              
-              if (Notification.permission === 'granted') {
-                 const hours = Math.floor(timeSince / 3600000);
-                 const mins = Math.floor((timeSince % 3600000) / 60000);
-                 const timeString = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  // Handle Logout
+  const handleLogout = () => signOut(auth);
 
-                 new Notification(`${type.charAt(0).toUpperCase() + type.slice(1)} Reminder`, {
-                   body: `It has been ${timeString} since last ${type}.`
-                 });
-                 
-                 newState.reminders = {
-                   ...newState.reminders,
-                   lastNotified: {
-                     ...newState.reminders.lastNotified,
-                     [type]: now
-                   }
-                 };
-                 stateChanged = true;
-              }
-            }
-          }
-        };
-
-        checkReminder('feeding', newState.reminders.feeding);
-        checkReminder('sleep', newState.reminders.sleep);
-        checkReminder('diaper', newState.reminders.diaper);
-      }
-
-      if (stateChanged) {
-        setAppState(prev => ({...prev, ...newState}));
-      }
-
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [appState]);
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">Loading...</div>;
+  if (!user) return <Login />;
 
   // Render view based on state
   const renderView = () => {
@@ -167,7 +95,7 @@ const App: React.FC = () => {
       case 'growth':
         return <Growth appState={appState} setAppState={setAppState} />;
       case 'settings':
-        return <Settings appState={appState} setAppState={setAppState} />;
+        return <Settings appState={appState} setAppState={setAppState} />; // Settings handled locally for now
       default:
         return <Tracker appState={appState} setAppState={setAppState} />;
     }

@@ -10,6 +10,9 @@ interface HistoryProps {
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
 }
 
+import { doc, deleteDoc, setDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
+
 const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
@@ -60,14 +63,11 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation(); 
     const targetId = String(id);
     if (deletingId === targetId) {
-      setAppState(prev => ({
-        ...prev,
-        logs: prev.logs.filter(l => String(l.id) !== targetId)
-      }));
+      await deleteDoc(doc(db, 'logs', targetId));
       setDeletingId(null);
     } else {
       setDeletingId(targetId);
@@ -103,7 +103,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
       setEditDetails({});
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingLog) return;
     
     const start = new Date(editStartTime).getTime();
@@ -137,18 +137,9 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
         details: sanitizedDetails
     };
     
-    setAppState(prev => {
-        let newLogs;
-        if (isCreating) {
-            newLogs = [updatedLog, ...prev.logs];
-        } else {
-            newLogs = prev.logs.map(l => l.id === editingLog.id ? updatedLog : l);
-        }
-        return {
-            ...prev,
-            logs: newLogs.sort((a, b) => b.startTime - a.startTime)
-        };
-    });
+    // Write directly to Firestore
+    await setDoc(doc(db, 'logs', updatedLog.id), updatedLog);
+    
     setEditingLog(null);
     setIsCreating(false);
   };

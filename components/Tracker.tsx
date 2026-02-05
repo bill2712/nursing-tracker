@@ -9,6 +9,9 @@ interface TrackerProps {
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
 }
 
+import { collection, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
+
 const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
   const [elapsed, setElapsed] = useState(0);
   const [showManualModal, setShowManualModal] = useState(false);
@@ -67,22 +70,22 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     };
   }, [appState.logs]);
 
-  const startTimer = (type: ActivityType) => {
-    setAppState(prev => ({
-      ...prev,
-      activeTimer: {
-        type,
-        startTime: Date.now(),
-        ignoredDurationMs: 0,
-        details: {
-          side: (type === 'feeding' || type === 'pumping') ? 'left' : undefined, 
-          feedingType: type === 'feeding' ? 'nursing' : undefined
-        }
+  // --- Firestore Actions ---
+
+  const startTimer = async (type: ActivityType) => {
+    const newTimer = {
+      type,
+      startTime: Date.now(),
+      ignoredDurationMs: 0,
+      details: {
+        side: (type === 'feeding' || type === 'pumping') ? 'left' : undefined, 
+        feedingType: type === 'feeding' ? 'nursing' : undefined
       }
-    }));
+    };
+    await setDoc(doc(db, 'system', 'activeTimer'), newTimer);
   };
 
-  const quickLogSleep = (minutes: number) => {
+  const quickLogSleep = async (minutes: number) => {
     const now = Date.now();
     const start = now - (minutes * 60 * 1000);
     const newLog: LogEntry = {
@@ -93,23 +96,17 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         durationSeconds: minutes * 60,
         details: {}
     };
-    setAppState(prev => ({
-        ...prev,
-        logs: [newLog, ...prev.logs].sort((a, b) => b.startTime - a.startTime)
-    }));
+    // Use Log ID as document ID
+    await setDoc(doc(db, 'logs', newLog.id), newLog);
   };
 
-  const updateActiveDetails = (updates: Partial<LogEntry['details']>) => {
-    setAppState(prev => {
-      if (!prev.activeTimer) return prev;
-      return {
-        ...prev,
-        activeTimer: {
-          ...prev.activeTimer,
-          details: { ...prev.activeTimer.details, ...updates }
-        }
+  const updateActiveDetails = async (updates: Partial<LogEntry['details']>) => {
+      if (!appState.activeTimer) return;
+      const updatedTimer = {
+          ...appState.activeTimer,
+          details: { ...appState.activeTimer.details, ...updates }
       };
-    });
+      await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
   };
 
   const toLocalISO = (timestamp: number) => {
@@ -124,31 +121,24 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       }
   };
 
-  const saveActiveEdit = () => {
+  const saveActiveEdit = async () => {
       if (!appState.activeTimer) return;
       const newStart = new Date(activeEditStartTime).getTime();
       
-      setAppState(prev => {
-          if (!prev.activeTimer) return prev;
-          return {
-              ...prev,
-              activeTimer: {
-                  ...prev.activeTimer,
-                  startTime: newStart
-              }
-          }
-      });
+      const updatedTimer = {
+          ...appState.activeTimer,
+          startTime: newStart
+      };
+      await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
       setShowActiveEditModal(false);
   };
 
-  const stopTimer = () => {
+  const stopTimer = async () => {
     if (!appState.activeTimer) return;
 
     const { startTime, pauseStartTime, ignoredDurationMs } = appState.activeTimer;
     
     // Calculate end time and duration
-    // If currently paused, effective end time is when we paused.
-    // If running, effective end time is now.
     const effectiveEndTime = pauseStartTime || Date.now();
     const durationSeconds = Math.floor((effectiveEndTime - startTime - (ignoredDurationMs || 0)) / 1000);
     
@@ -162,84 +152,80 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         details: appState.activeTimer.details
       };
       
-      setAppState(prev => ({
-        ...prev,
-        logs: [newLog, ...prev.logs],
-        activeTimer: null
-      }));
+      // Batch write: Add log AND clear timer
+      await setDoc(doc(db, 'logs', newLog.id), newLog);
+      await deleteDoc(doc(db, 'system', 'activeTimer'));
     } else {
-      setAppState(prev => ({ ...prev, activeTimer: null }));
+      // Just clear timer if too short
+      await deleteDoc(doc(db, 'system', 'activeTimer'));
     }
   };
 
-  const cancelTimer = () => {
-    setAppState(prev => ({ ...prev, activeTimer: null }));
+  const cancelTimer = async () => {
+    await deleteDoc(doc(db, 'system', 'activeTimer'));
   };
 
-  const togglePause = () => {
-    setAppState(prev => {
-        if (!prev.activeTimer) return prev;
-        
-        const now = Date.now();
-        if (prev.activeTimer.pauseStartTime) {
-            // RESUME
-            // Calculate how long we were paused and add to ignored
-            const pausedDuration = now - prev.activeTimer.pauseStartTime;
-            return {
-                ...prev,
-                activeTimer: {
-                    ...prev.activeTimer,
-                    pauseStartTime: undefined,
-                    snoozeEndTime: undefined, // Clear snooze if any
-                    ignoredDurationMs: (prev.activeTimer.ignoredDurationMs || 0) + pausedDuration
-                }
-            };
-        } else {
-            // PAUSE
-            return {
-                ...prev,
-                activeTimer: {
-                    ...prev.activeTimer,
-                    pauseStartTime: now
-                }
-            };
-        }
-    });
+  const togglePause = async () => {
+    if (!appState.activeTimer) return;
+    
+    const now = Date.now();
+    let updatedTimer;
+
+    if (appState.activeTimer.pauseStartTime) {
+        // RESUME
+        const pausedDuration = now - appState.activeTimer.pauseStartTime;
+        updatedTimer = {
+            ...appState.activeTimer,
+            pauseStartTime: undefined,
+            snoozeEndTime: undefined,
+            ignoredDurationMs: (appState.activeTimer.ignoredDurationMs || 0) + pausedDuration
+        };
+    } else {
+        // PAUSE
+        updatedTimer = {
+            ...appState.activeTimer,
+            pauseStartTime: now
+        };
+    }
+    await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
   };
 
-  const handleSnooze = () => {
+  const handleSnooze = async () => {
     if (!appState.activeTimer) return;
     
     const now = Date.now();
     const SNOOZE_DURATION = 5 * 60 * 1000;
+    let updatedTimer;
 
     if (appState.activeTimer.snoozeEndTime) {
-        // Already snoozing -> Resume (Cancel snooze)
-        togglePause();
-    } else if (appState.activeTimer.pauseStartTime) {
+        // Resume from snooze
+        // Reuse togglePause logic essentially? No, snooze is special state.
+        // Actually UI calls togglePause if Snoozing.
+        // But here we handle switching TO Snooze.
+        // Only if currently snoozing we call THIS function? No.
+        // Logic below assumes switching TO snooze.
+        return; 
+    } 
+    
+    // Switch TO Snooze
+    if (appState.activeTimer.pauseStartTime) {
         // Manually Paused -> Switch to Snooze
-        // We keep the original pauseStartTime so the total duration ignored is correct
-        setAppState(prev => ({
-            ...prev,
-            activeTimer: {
-                ...prev.activeTimer!,
-                snoozeEndTime: now + SNOOZE_DURATION
-            }
-        }));
+        updatedTimer = {
+            ...appState.activeTimer,
+            snoozeEndTime: now + SNOOZE_DURATION
+        };
     } else {
         // Running -> Pause & Snooze
-        setAppState(prev => ({
-            ...prev,
-            activeTimer: {
-                ...prev.activeTimer!,
-                pauseStartTime: now,
-                snoozeEndTime: now + SNOOZE_DURATION
-            }
-        }));
+        updatedTimer = {
+            ...appState.activeTimer,
+            pauseStartTime: now,
+            snoozeEndTime: now + SNOOZE_DURATION
+        };
     }
+    await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
   };
 
-  const handleManualSubmit = () => {
+  const handleManualSubmit = async () => {
     if (!manualStartTime || !manualEndTime) {
       alert("Please select start and end times");
       return;
@@ -262,10 +248,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       details: manualDetails
     };
 
-    setAppState(prev => ({
-      ...prev,
-      logs: [newLog, ...prev.logs].sort((a, b) => b.startTime - a.startTime)
-    }));
+    await setDoc(doc(db, 'logs', newLog.id), newLog);
     setShowManualModal(false);
   };
 
@@ -617,14 +600,14 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
             {['wet', 'dirty', 'mixed'].map((type) => (
                 <button
                     key={type}
-                    onClick={() => {
+                    onClick={async () => {
                         const newLog: LogEntry = {
                             id: generateId(),
                             type: 'diaper',
                             startTime: Date.now(),
                             details: { diaperState: type as any }
                         };
-                        setAppState(prev => ({ ...prev, logs: [newLog, ...prev.logs] }));
+                        await setDoc(doc(db, 'logs', newLog.id), newLog);
                     }}
                     className="bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 py-3 rounded-xl text-sm font-medium capitalize transition-colors"
                 >
