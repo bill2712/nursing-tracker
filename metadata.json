@@ -1,0 +1,5 @@
+{
+  "name": "NurtureTrack",
+  "description": "A comprehensive baby nursing and sleep tracker for parents. Features real-time timers, history logging, data visualization, partner sharing via data export, and AI-powered insights.",
+  "requestFramePermissions": []
+}

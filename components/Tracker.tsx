@@ -1,0 +1,757 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { MilkIcon, MoonIcon, ClockIcon, PencilIcon } from './Icons';
+import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
+import { formatTimer, generateId, formatTimeAgo } from '../utils';
+
+interface TrackerProps {
+  appState: AppState;
+  setAppState: React.Dispatch<React.SetStateAction<AppState>>;
+}
+
+const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
+  const [elapsed, setElapsed] = useState(0);
+  const [showManualModal, setShowManualModal] = useState(false);
+  
+  // Active Timer Edit Modal State
+  const [showActiveEditModal, setShowActiveEditModal] = useState(false);
+  const [activeEditStartTime, setActiveEditStartTime] = useState('');
+
+  // Manual Entry State
+  const [manualType, setManualType] = useState<ActivityType>('feeding');
+  const [manualStartTime, setManualStartTime] = useState('');
+  const [manualEndTime, setManualEndTime] = useState('');
+  const [manualDetails, setManualDetails] = useState<LogEntry['details']>({ feedingType: 'nursing', side: 'left' });
+
+  // Timer Tick
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    
+    const updateTick = () => {
+      if (!appState.activeTimer) {
+        setElapsed(0);
+        return;
+      }
+
+      const now = Date.now();
+      const { startTime, pauseStartTime, ignoredDurationMs } = appState.activeTimer;
+      const totalIgnored = ignoredDurationMs || 0;
+
+      if (pauseStartTime) {
+        // If paused, elapsed time is fixed at the moment pause started
+        setElapsed(Math.floor((pauseStartTime - startTime - totalIgnored) / 1000));
+      } else {
+        // Running normally
+        setElapsed(Math.floor((now - startTime - totalIgnored) / 1000));
+      }
+    };
+
+    if (appState.activeTimer) {
+      updateTick(); // Initial update
+      interval = setInterval(updateTick, 1000);
+    } else {
+      setElapsed(0);
+    }
+    return () => clearInterval(interval);
+  }, [appState.activeTimer]);
+
+  const lastActivities = useMemo(() => {
+    const sorted = [...appState.logs].sort((a, b) => b.startTime - a.startTime);
+    return {
+      feeding: sorted.find(l => l.type === 'feeding'),
+      sleep: sorted.find(l => l.type === 'sleep'),
+      diaper: sorted.find(l => l.type === 'diaper'),
+    };
+  }, [appState.logs]);
+
+  const startTimer = (type: ActivityType) => {
+    setAppState(prev => ({
+      ...prev,
+      activeTimer: {
+        type,
+        startTime: Date.now(),
+        ignoredDurationMs: 0,
+        details: {
+          side: type === 'feeding' ? 'left' : undefined, 
+          feedingType: type === 'feeding' ? 'nursing' : undefined
+        }
+      }
+    }));
+  };
+
+  const quickLogSleep = (minutes: number) => {
+    const now = Date.now();
+    const start = now - (minutes * 60 * 1000);
+    const newLog: LogEntry = {
+        id: generateId(),
+        type: 'sleep',
+        startTime: start,
+        endTime: now,
+        durationSeconds: minutes * 60,
+        details: {}
+    };
+    setAppState(prev => ({
+        ...prev,
+        logs: [newLog, ...prev.logs].sort((a, b) => b.startTime - a.startTime)
+    }));
+  };
+
+  const updateActiveDetails = (updates: Partial<LogEntry['details']>) => {
+    setAppState(prev => {
+      if (!prev.activeTimer) return prev;
+      return {
+        ...prev,
+        activeTimer: {
+          ...prev.activeTimer,
+          details: { ...prev.activeTimer.details, ...updates }
+        }
+      };
+    });
+  };
+
+  const toLocalISO = (timestamp: number) => {
+    const d = new Date(timestamp);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
+
+  const openActiveEditModal = () => {
+      if (appState.activeTimer) {
+          setActiveEditStartTime(toLocalISO(appState.activeTimer.startTime));
+          setShowActiveEditModal(true);
+      }
+  };
+
+  const saveActiveEdit = () => {
+      if (!appState.activeTimer) return;
+      const newStart = new Date(activeEditStartTime).getTime();
+      
+      setAppState(prev => {
+          if (!prev.activeTimer) return prev;
+          return {
+              ...prev,
+              activeTimer: {
+                  ...prev.activeTimer,
+                  startTime: newStart
+              }
+          }
+      });
+      setShowActiveEditModal(false);
+  };
+
+  const stopTimer = () => {
+    if (!appState.activeTimer) return;
+
+    const { startTime, pauseStartTime, ignoredDurationMs } = appState.activeTimer;
+    
+    // Calculate end time and duration
+    // If currently paused, effective end time is when we paused.
+    // If running, effective end time is now.
+    const effectiveEndTime = pauseStartTime || Date.now();
+    const durationSeconds = Math.floor((effectiveEndTime - startTime - (ignoredDurationMs || 0)) / 1000);
+    
+    if (durationSeconds > 2) {
+      const newLog: LogEntry = {
+        id: generateId(),
+        type: appState.activeTimer.type,
+        startTime: appState.activeTimer.startTime,
+        endTime: effectiveEndTime,
+        durationSeconds,
+        details: appState.activeTimer.details
+      };
+      
+      setAppState(prev => ({
+        ...prev,
+        logs: [newLog, ...prev.logs],
+        activeTimer: null
+      }));
+    } else {
+      setAppState(prev => ({ ...prev, activeTimer: null }));
+    }
+  };
+
+  const cancelTimer = () => {
+    setAppState(prev => ({ ...prev, activeTimer: null }));
+  };
+
+  const togglePause = () => {
+    setAppState(prev => {
+        if (!prev.activeTimer) return prev;
+        
+        const now = Date.now();
+        if (prev.activeTimer.pauseStartTime) {
+            // RESUME
+            // Calculate how long we were paused and add to ignored
+            const pausedDuration = now - prev.activeTimer.pauseStartTime;
+            return {
+                ...prev,
+                activeTimer: {
+                    ...prev.activeTimer,
+                    pauseStartTime: undefined,
+                    snoozeEndTime: undefined, // Clear snooze if any
+                    ignoredDurationMs: (prev.activeTimer.ignoredDurationMs || 0) + pausedDuration
+                }
+            };
+        } else {
+            // PAUSE
+            return {
+                ...prev,
+                activeTimer: {
+                    ...prev.activeTimer,
+                    pauseStartTime: now
+                }
+            };
+        }
+    });
+  };
+
+  const handleSnooze = () => {
+    if (!appState.activeTimer) return;
+    
+    const now = Date.now();
+    const SNOOZE_DURATION = 5 * 60 * 1000;
+
+    if (appState.activeTimer.snoozeEndTime) {
+        // Already snoozing -> Resume (Cancel snooze)
+        togglePause();
+    } else if (appState.activeTimer.pauseStartTime) {
+        // Manually Paused -> Switch to Snooze
+        // We keep the original pauseStartTime so the total duration ignored is correct
+        setAppState(prev => ({
+            ...prev,
+            activeTimer: {
+                ...prev.activeTimer!,
+                snoozeEndTime: now + SNOOZE_DURATION
+            }
+        }));
+    } else {
+        // Running -> Pause & Snooze
+        setAppState(prev => ({
+            ...prev,
+            activeTimer: {
+                ...prev.activeTimer!,
+                pauseStartTime: now,
+                snoozeEndTime: now + SNOOZE_DURATION
+            }
+        }));
+    }
+  };
+
+  const handleManualSubmit = () => {
+    if (!manualStartTime || !manualEndTime) {
+      alert("Please select start and end times");
+      return;
+    }
+
+    const start = new Date(manualStartTime).getTime();
+    const end = new Date(manualEndTime).getTime();
+
+    if (end <= start) {
+      alert("End time must be after start time");
+      return;
+    }
+
+    const newLog: LogEntry = {
+      id: generateId(),
+      type: manualType,
+      startTime: start,
+      endTime: end,
+      durationSeconds: Math.floor((end - start) / 1000),
+      details: manualDetails
+    };
+
+    setAppState(prev => ({
+      ...prev,
+      logs: [newLog, ...prev.logs].sort((a, b) => b.startTime - a.startTime)
+    }));
+    setShowManualModal(false);
+  };
+
+  const initManualEntry = () => {
+    const now = new Date();
+    const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    setManualStartTime(localIso);
+    setManualEndTime(localIso);
+    setManualType('feeding');
+    setManualDetails({ feedingType: 'nursing', side: 'left' });
+    setShowManualModal(true);
+  };
+
+  const setAllDaySleep = () => {
+    const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const toLocalIso = (d: Date) => new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    
+    setManualStartTime(toLocalIso(startOfDay));
+    setManualEndTime(toLocalIso(now));
+  };
+
+  const addDurationToManual = (minutes: number) => {
+      if (!manualStartTime) return;
+      const start = new Date(manualStartTime).getTime();
+      const end = start + minutes * 60 * 1000;
+      
+      const endDate = new Date(end);
+      const localIso = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      setManualEndTime(localIso);
+  };
+
+  // --- Active Timer View ---
+  if (appState.activeTimer) {
+    const isFeeding = appState.activeTimer.type === 'feeding';
+    const isPaused = !!appState.activeTimer.pauseStartTime;
+    const isSnoozed = !!appState.activeTimer.snoozeEndTime;
+    
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6 space-y-6 animate-fade-in relative">
+        <div className="relative mt-4">
+          <div className={`absolute -inset-4 rounded-full opacity-30 transition-all duration-500
+             ${isSnoozed ? 'bg-amber-400 animate-pulse' : 
+               isPaused ? 'bg-slate-300 dark:bg-slate-700' : 
+               (isFeeding ? 'bg-pink-300 dark:bg-pink-800 animate-pulse' : 'bg-indigo-300 dark:bg-indigo-800 animate-pulse')}
+          `}></div>
+          <div className={`relative p-8 rounded-full border-4 transition-all duration-500 flex items-center justify-center
+             ${isSnoozed ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/50' : 
+               isPaused ? 'border-slate-400 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 grayscale' : 
+               (isFeeding ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/40' : 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40')}
+          `}>
+             {isFeeding ? <MilkIcon className="w-16 h-16 text-pink-500" /> : <MoonIcon className="w-16 h-16 text-indigo-500" />}
+             
+             {/* Visual Overlay for Paused/Snoozed */}
+             {(isPaused || isSnoozed) && (
+                 <div className="absolute inset-0 flex items-center justify-center bg-white/40 dark:bg-black/40 rounded-full backdrop-blur-[1px]">
+                     <span className={`font-black text-xs uppercase tracking-widest px-2 py-1 rounded bg-white dark:bg-slate-900 shadow-sm
+                        ${isSnoozed ? 'text-amber-600 dark:text-amber-400 animate-pulse' : 'text-slate-600 dark:text-slate-300 animate-pulse'}
+                     `}>
+                        {isSnoozed ? 'Snoozing' : 'Paused'}
+                     </span>
+                 </div>
+             )}
+          </div>
+          
+          {isSnoozed && (
+             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold text-white shadow-sm tracking-wider uppercase bg-amber-500 animate-bounce whitespace-nowrap z-10">
+                Resuming Soon
+             </div>
+          )}
+        </div>
+        
+        <div className="text-center relative">
+          <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-1">
+            {isSnoozed ? 'Snoozing...' : (isPaused ? 'Timer Paused' : (isFeeding ? 'Feeding Time' : 'Sleeping'))}
+          </h2>
+          <div className={`flex items-center justify-center space-x-2 transition-all duration-300 ${isPaused || isSnoozed ? 'opacity-70' : 'opacity-100'}`}>
+              <div className={`text-5xl font-mono font-medium tracking-wider transition-all duration-300 ${isPaused || isSnoozed ? 'text-slate-500 dark:text-slate-500' : 'text-slate-800 dark:text-white'} ${(isPaused || isSnoozed) ? 'animate-pulse' : ''}`}>
+                {formatTimer(elapsed)}
+              </div>
+              <button 
+                onClick={openActiveEditModal}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                aria-label="Edit Start Time"
+              >
+                  <PencilIcon className="w-5 h-5" />
+              </button>
+          </div>
+          {isSnoozed && <div className="text-sm text-amber-600 dark:text-amber-400 mt-2 font-bold animate-pulse">Auto-resuming in 5m</div>}
+        </div>
+
+        {/* Notes Input */}
+        <div className="w-full max-w-sm space-y-2">
+           <label className="text-xs font-bold text-slate-400 uppercase ml-1">Session Notes</label>
+           <textarea
+             className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none text-slate-700 dark:text-slate-200 bg-white/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 transition-colors"
+             placeholder="Add notes for this session..."
+             value={appState.activeTimer.details?.notes || ''}
+             onChange={(e) => updateActiveDetails({ notes: e.target.value })}
+             rows={2}
+           />
+        </div>
+
+        {/* Feeding Controls */}
+        {isFeeding && (
+          <div className="w-full max-w-sm space-y-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
+             <div className="flex justify-center space-x-2">
+                <button 
+                  onClick={() => updateActiveDetails({ feedingType: 'nursing' })}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${appState.activeTimer.details?.feedingType === 'nursing' ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+                >Nursing</button>
+                <button 
+                   onClick={() => updateActiveDetails({ feedingType: 'bottle' })}
+                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${appState.activeTimer.details?.feedingType === 'bottle' ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
+                >Bottle</button>
+             </div>
+
+             {appState.activeTimer.details?.feedingType === 'nursing' && (
+               <div className="flex justify-center space-x-4">
+                 {(['left', 'right', 'both'] as const).map(side => (
+                   <button
+                    key={side}
+                    onClick={() => updateActiveDetails({ side })}
+                    className={`capitalize px-4 py-2 rounded-full border ${appState.activeTimer!.details?.side === side ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
+                   >
+                     {side}
+                   </button>
+                 ))}
+               </div>
+             )}
+
+             {appState.activeTimer.details?.feedingType === 'bottle' && (
+                <div className="flex flex-col items-center space-y-3">
+                    <div className="flex items-center justify-center space-x-2">
+                      <input 
+                        type="number" 
+                        placeholder="ml" 
+                        value={appState.activeTimer.details?.amountMl || ''}
+                        className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
+                        onChange={(e) => updateActiveDetails({ amountMl: parseInt(e.target.value) || 0 })}
+                      />
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">ml</span>
+                    </div>
+                    {/* Quick Select Buttons */}
+                    <div className="flex flex-wrap justify-center gap-2">
+                        {[60, 90, 120, 150].map(amt => (
+                            <button 
+                                key={amt}
+                                onClick={() => updateActiveDetails({ amountMl: amt })}
+                                className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                            >
+                                {amt}ml
+                            </button>
+                        ))}
+                    </div>
+                </div>
+             )}
+          </div>
+        )}
+
+        {/* Timer Controls */}
+        <div className="w-full max-w-xs space-y-3">
+            <div className="flex space-x-3">
+                <button
+                    onClick={togglePause}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${isPaused && !isSnoozed ? 'bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                >
+                    {isPaused && !isSnoozed ? 'Resume' : 'Pause'}
+                </button>
+                <button
+                    onClick={handleSnooze}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${isSnoozed ? 'bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                >
+                    {isSnoozed ? 'Resume' : 'Snooze 5m'}
+                </button>
+            </div>
+
+            <div className="flex space-x-4 w-full">
+                <button 
+                    onClick={cancelTimer}
+                    className="flex-1 py-4 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-lg hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onClick={stopTimer}
+                    className={`flex-1 py-4 rounded-xl font-bold text-lg text-white shadow-lg transition-transform active:scale-95 ${isFeeding ? 'bg-pink-500 hover:bg-pink-600 shadow-pink-200 dark:shadow-none' : 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-200 dark:shadow-none'}`}
+                >
+                    Finish
+                </button>
+            </div>
+        </div>
+
+        {/* Edit Active Timer Modal */}
+        {showActiveEditModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowActiveEditModal(false)}>
+                <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden p-6" onClick={e => e.stopPropagation()}>
+                    <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-4">Edit Timer Start</h3>
+                    <div className="space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Start Time</label>
+                            <input 
+                                type="datetime-local" 
+                                value={activeEditStartTime}
+                                onChange={e => setActiveEditStartTime(e.target.value)}
+                                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white rounded-lg text-sm"
+                            />
+                            <p className="text-xs text-slate-400">Useful if you forgot to start the timer on time.</p>
+                        </div>
+                        <button 
+                            onClick={saveActiveEdit}
+                            className="w-full py-3 bg-slate-900 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
+                        >
+                            Update Timer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- Main Tracker View ---
+  return (
+    <div className="flex flex-col h-full p-6 space-y-6 overflow-y-auto">
+      <header className="flex justify-between items-center">
+        <div>
+           <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Quick Track</h1>
+           <p className="text-slate-500 dark:text-slate-400">What is baby doing?</p>
+        </div>
+        <button 
+          onClick={initManualEntry}
+          className="text-sm font-bold text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/20 px-3 py-2 rounded-lg hover:bg-pink-100 dark:hover:bg-pink-900/30 transition-colors"
+        >
+          + Log Past
+        </button>
+      </header>
+
+      {/* Last Activity Dashboard */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
+           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Last Fed</span>
+           <span className="text-sm font-bold text-pink-600 dark:text-pink-400">
+             {lastActivities.feeding ? formatTimeAgo(lastActivities.feeding.endTime || lastActivities.feeding.startTime) : '--'}
+           </span>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
+           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Last Slept</span>
+           <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+             {lastActivities.sleep ? formatTimeAgo(lastActivities.sleep.endTime || lastActivities.sleep.startTime) : '--'}
+           </span>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
+           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Diaper</span>
+           <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+             {lastActivities.diaper ? formatTimeAgo(lastActivities.diaper.startTime) : '--'}
+           </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        <button 
+          onClick={() => startTimer('feeding')}
+          className="group relative overflow-hidden bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-pink-200 dark:hover:border-pink-900 transition-all text-left"
+        >
+          <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+            <MilkIcon className="w-32 h-32 text-pink-500" />
+          </div>
+          <div className="relative z-10">
+            <div className="w-14 h-14 bg-pink-100 dark:bg-pink-900/30 rounded-2xl flex items-center justify-center mb-4 text-pink-600 dark:text-pink-400">
+              <MilkIcon className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Start Feeding</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Timer for nursing or bottle</p>
+          </div>
+        </button>
+
+        <div className="relative group">
+            <button 
+              onClick={() => startTimer('sleep')}
+              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition-all text-left pb-16"
+            >
+              <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                <MoonIcon className="w-32 h-32 text-indigo-500" />
+              </div>
+              <div className="relative z-10">
+                <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-4 text-indigo-600 dark:text-indigo-400">
+                  <MoonIcon className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Start Sleeping</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Track nap or night sleep</p>
+              </div>
+            </button>
+            {/* Quick Sleep Log Buttons Overlay */}
+            <div className="absolute bottom-4 left-8 right-8 flex space-x-2 z-20">
+                {[30, 60, 120].map(mins => (
+                    <button
+                        key={mins}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            quickLogSleep(mins);
+                        }}
+                        className="flex-1 py-2 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors border border-indigo-100 dark:border-indigo-800"
+                    >
+                        Log {mins < 60 ? `${mins}m` : `${mins/60}h`}
+                    </button>
+                ))}
+            </div>
+        </div>
+      </div>
+      
+      {/* Quick Add Diaper */}
+      <div className="mt-auto">
+         <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mb-3 uppercase tracking-wider">Quick Diaper</p>
+         <div className="grid grid-cols-3 gap-3">
+            {['wet', 'dirty', 'mixed'].map((type) => (
+                <button
+                    key={type}
+                    onClick={() => {
+                        const newLog: LogEntry = {
+                            id: generateId(),
+                            type: 'diaper',
+                            startTime: Date.now(),
+                            details: { diaperState: type as any }
+                        };
+                        setAppState(prev => ({ ...prev, logs: [newLog, ...prev.logs] }));
+                    }}
+                    className="bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 py-3 rounded-xl text-sm font-medium capitalize transition-colors"
+                >
+                    {type}
+                </button>
+            ))}
+         </div>
+      </div>
+
+      {/* Manual Entry Modal */}
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowManualModal(false)}>
+           <div 
+             className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in" 
+             onClick={e => e.stopPropagation()}
+           >
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                 <h3 className="font-bold text-slate-700 dark:text-slate-200">Log Past Activity</h3>
+                 <button onClick={() => setShowManualModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium">Cancel</button>
+              </div>
+              
+              <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                 {/* Type Selector */}
+                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                    <button 
+                      onClick={() => setManualType('feeding')}
+                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'feeding' ? 'bg-white dark:bg-slate-700 text-pink-600 dark:text-pink-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                    >Feeding</button>
+                    <button 
+                      onClick={() => setManualType('sleep')}
+                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'sleep' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                    >Sleep</button>
+                 </div>
+                 
+                 {/* Special "All Day Sleep" Shortcut */}
+                 {manualType === 'sleep' && (
+                    <button 
+                      onClick={setAllDaySleep}
+                      className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-2 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors w-full border border-indigo-100 dark:border-indigo-800 mb-2"
+                    >
+                      Log "All Day Sleep" (Since Midnight)
+                    </button>
+                 )}
+
+                 {/* Time Inputs */}
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Start Time</label>
+                       <input 
+                         type="datetime-local" 
+                         value={manualStartTime}
+                         onChange={e => setManualStartTime(e.target.value)}
+                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
+                       />
+                    </div>
+                    <div className="space-y-1">
+                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">End Time</label>
+                       <input 
+                         type="datetime-local" 
+                         value={manualEndTime}
+                         onChange={e => setManualEndTime(e.target.value)}
+                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
+                       />
+                    </div>
+                 </div>
+
+                 {/* Quick Durations for Sleep */}
+                 {manualType === 'sleep' && (
+                     <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                         {[30, 60, 90, 120, 180, 240, 480].map(m => (
+                             <button 
+                                key={m} 
+                                onClick={() => addDurationToManual(m)}
+                                className="shrink-0 px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-800"
+                             >
+                                 +{m < 60 ? m+'m' : (m/60)+'h'}
+                             </button>
+                         ))}
+                     </div>
+                 )}
+
+                 {/* Detailed Inputs based on Type */}
+                 {manualType === 'feeding' && (
+                    <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex justify-center space-x-3">
+                           <button 
+                              onClick={() => setManualDetails(p => ({ ...p, feedingType: 'nursing' }))}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium border ${manualDetails.feedingType === 'nursing' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
+                           >Nursing</button>
+                           <button 
+                              onClick={() => setManualDetails(p => ({ ...p, feedingType: 'bottle' }))}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium border ${manualDetails.feedingType === 'bottle' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
+                           >Bottle</button>
+                        </div>
+
+                        {manualDetails.feedingType === 'nursing' && (
+                           <div className="flex justify-center space-x-2">
+                              {(['left', 'right', 'both'] as const).map(side => (
+                                 <button
+                                    key={side}
+                                    onClick={() => setManualDetails(p => ({ ...p, side }))}
+                                    className={`capitalize px-3 py-1.5 rounded-full text-sm border ${manualDetails.side === side ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}
+                                 >
+                                    {side}
+                                 </button>
+                              ))}
+                           </div>
+                        )}
+                        
+                        {manualDetails.feedingType === 'bottle' && (
+                           <div className="flex flex-col items-center space-y-3">
+                              <div className="flex justify-center items-center space-x-2">
+                                <input 
+                                  type="number" 
+                                  placeholder="Amount" 
+                                  value={manualDetails.amountMl || ''}
+                                  className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
+                                  onChange={e => setManualDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
+                                />
+                                <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
+                              </div>
+                               {/* Quick Select Buttons */}
+                               <div className="flex flex-wrap justify-center gap-2">
+                                    {[60, 90, 120, 150].map(amt => (
+                                        <button 
+                                            key={amt}
+                                            onClick={() => setManualDetails(p => ({ ...p, amountMl: amt }))}
+                                            className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300"
+                                        >
+                                            {amt}ml
+                                        </button>
+                                    ))}
+                                </div>
+                           </div>
+                        )}
+                    </div>
+                 )}
+
+                 <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
+                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Notes</label>
+                   <textarea
+                     className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none"
+                     placeholder="Add details..."
+                     value={manualDetails.notes || ''}
+                     onChange={(e) => setManualDetails(p => ({ ...p, notes: e.target.value }))}
+                     rows={3}
+                   />
+                 </div>
+
+                 <button 
+                   onClick={handleManualSubmit}
+                   className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors"
+                 >
+                    Save Record
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Tracker;
