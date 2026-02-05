@@ -15,6 +15,8 @@ import { collection, onSnapshot, query, orderBy, doc, setDoc, limit } from 'fire
 import { auth, db } from './services/firebase';
 import Login from './components/Login';
 
+const ALERT_emails = ["bill27122002@gmail.com", "suet0806@gmail.com", "pingwai03@gmail.com"];
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,12 +49,12 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Data Sync Listeners (Only when logged in)
+  // Data Sync Listeners (Only when logged in AND permitted)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !ALERT_emails.includes(user.email || '')) return;
 
     // 1. Listen to Logs
-    const q = query(collection(db, 'logs'), orderBy('startTime', 'desc'), limit(500)); // Limit to last 500 for perf
+    const q = query(collection(db, 'logs'), orderBy('startTime', 'desc'), limit(500)); 
     const unsubLogs = onSnapshot(q, (snapshot) => {
       const logs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as LogEntry));
       setAppState(prev => ({ ...prev, logs }));
@@ -67,10 +69,6 @@ const App: React.FC = () => {
       }
     });
 
-     // 3. Listen to Settings (Optional, maybe just keep local for now or single doc)
-     // For simplicity, let's keep settings local to device OR sync simple items if requested.
-     // User asked for "Record" sync. Settings sync is bonus. We stick to records for now to save time.
-
     return () => {
       unsubLogs();
       unsubTimer();
@@ -82,6 +80,29 @@ const App: React.FC = () => {
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">Loading...</div>;
   if (!user) return <Login />;
+
+  // ACCESS CHECK
+  if (!ALERT_emails.includes(user.email || '')) {
+      return (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-6 space-y-6 text-center">
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 max-w-sm w-full">
+                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+                      🔒
+                  </div>
+                  <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">Access Denied</h1>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                      Sorry, the account <strong>{user.email}</strong> is not authorized to view this family tracker.
+                  </p>
+                  <button 
+                      onClick={handleLogout}
+                      className="w-full py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+                  >
+                      Sign Out
+                  </button>
+              </div>
+          </div>
+      );
+  }
 
   // Render view based on state
   const renderView = () => {
@@ -95,7 +116,7 @@ const App: React.FC = () => {
       case 'growth':
         return <Growth appState={appState} setAppState={setAppState} />;
       case 'settings':
-        return <Settings appState={appState} setAppState={setAppState} />; // Settings handled locally for now
+        return <Settings appState={appState} setAppState={setAppState} />;
       default:
         return <Tracker appState={appState} setAppState={setAppState} />;
     }
@@ -103,7 +124,7 @@ const App: React.FC = () => {
 
   return (
     <div className={`h-screen w-full flex flex-col mx-auto max-w-md shadow-2xl overflow-hidden relative ${appState.darkMode ? 'dark' : ''}`}>
-      <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200">
           <main className="flex-1 overflow-y-auto no-scrollbar relative z-0">
              {renderView()}
           </main>
