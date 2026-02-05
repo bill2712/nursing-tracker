@@ -48,10 +48,10 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
   // Daily Activity Chart (Today)
   const chartData = [
-    { name: 'Feed', value: feedsTotal, color: '#ec4899' },
-    { name: 'Sleep (hrs)', value: Math.round(sleepTotalHours), color: '#6366f1' },
-    { name: 'Diaper', value: diaperTotal, color: '#10b981' },
-    { name: 'Pump', value: pumpingTotal, color: '#06b6d4' },
+    { name: '餵奶', value: feedsTotal, color: '#ec4899' },
+    { name: '睡眠 (時)', value: Math.round(sleepTotalHours), color: '#6366f1' },
+    { name: '換片', value: diaperTotal, color: '#10b981' },
+    { name: '擠奶', value: pumpingTotal, color: '#06b6d4' },
   ];
 
   // Sleep Trend Chart (Last 7 Days)
@@ -98,37 +98,37 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
   return (
     <div className="p-6 space-y-6 pb-24">
       <header>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Insights</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">數據分析</h1>
       </header>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
           <div className="text-2xl font-bold text-pink-500">{feedsTotal}</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Feeds</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">餵奶次數</div>
         </div>
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center flex flex-col items-center justify-center">
           <div className="text-2xl font-bold text-indigo-500">{sleepTotalHours.toFixed(1)}h</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Sleep</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">睡眠時數</div>
           {/* Goal Indicator */}
           <div className="w-full mt-2 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
              <div className="h-full bg-indigo-500" style={{ width: `${sleepProgress}%` }}></div>
           </div>
-          <div className="text-[9px] text-slate-400 mt-1">Goal: {goalTotalHours.toFixed(1)}h</div>
+          <div className="text-[9px] text-slate-400 mt-1">目標: {goalTotalHours.toFixed(1)}h</div>
         </div>
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
           <div className="text-2xl font-bold text-emerald-500">{diaperTotal}</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Changes</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">換片次數</div>
         </div>
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
           <div className="text-2xl font-bold text-cyan-500">{pumpingVolume}ml</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Pumped</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">擠奶量</div>
         </div>
       </div>
 
       {/* Sleep Trend Chart */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Sleep Trend (Last 7 Days)</h3>
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">睡眠趨勢 (過去7天)</h3>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={sleepTrendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
@@ -149,7 +149,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
       {/* Basic Activity Chart */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-64">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Today's Activity Breakdown</h3>
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">今日活動分佈</h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
@@ -168,11 +168,11 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-950/40 dark:to-fuchsia-950/40 p-6 rounded-2xl border border-violet-100 dark:border-violet-900/50">
         <div className="flex items-center space-x-2 mb-4">
            <SparklesIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-           <h3 className="text-lg font-bold text-violet-800 dark:text-violet-200">Ask AI Coach</h3>
+           <h3 className="text-lg font-bold text-violet-800 dark:text-violet-200">詢問 AI 教練</h3>
         </div>
         
         <p className="text-sm text-violet-700 dark:text-violet-300 mb-4 leading-relaxed">
-          Get a personalized analysis of your baby's schedule, sleep patterns, and feeding habits from our AI.
+          讓 AI 為您分析寶寶的作息、睡眠模式和餵食習慣，提供個人化建議。
         </p>
 
         {!insight && !loading && (
@@ -180,7 +180,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
             onClick={handleGetInsight}
             className="w-full py-3 bg-white dark:bg-violet-900/50 text-violet-600 dark:text-violet-200 font-semibold rounded-xl shadow-sm border border-violet-100 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/70 transition-colors"
           >
-            Analyze Schedule
+            分析作息
           </button>
         )}
 

@@ -89,15 +89,15 @@ const App: React.FC = () => {
                   <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
                       🔒
                   </div>
-                  <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">Access Denied</h1>
+                  <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">存取被拒 Access Denied</h1>
                   <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                      Sorry, the account <strong>{user.email}</strong> is not authorized to view this family tracker.
+                      抱歉，帳號 <strong>{user.email}</strong> 沒有權限查看此資料。
                   </p>
                   <button 
                       onClick={handleLogout}
                       className="w-full py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
                   >
-                      Sign Out
+                      登出 (Sign Out)
                   </button>
               </div>
           </div>

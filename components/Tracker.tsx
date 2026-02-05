@@ -317,7 +317,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                      <span className={`font-black text-xs uppercase tracking-widest px-2 py-1 rounded bg-white dark:bg-slate-900 shadow-sm
                         ${isSnoozed ? 'text-amber-600 dark:text-amber-400 animate-pulse' : 'text-slate-600 dark:text-slate-300 animate-pulse'}
                      `}>
-                        {isSnoozed ? 'Snoozing' : 'Paused'}
+                        {isSnoozed ? '貪睡中' : '已暫停'}
                      </span>
                  </div>
              )}
@@ -332,7 +332,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         
         <div className="text-center relative">
           <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-1">
-            {isSnoozed ? 'Snoozing...' : (isPaused ? 'Timer Paused' : (isFeeding ? 'Feeding Time' : 'Sleeping'))}
+            {isSnoozed ? '貪睡中...' : (isPaused ? '計時暫停' : (isFeeding ? '餵奶時間' : '睡覺中'))}
           </h2>
           <div className={`flex items-center justify-center space-x-2 transition-all duration-300 ${isPaused || isSnoozed ? 'opacity-70' : 'opacity-100'}`}>
               <div className={`text-5xl font-mono font-medium tracking-wider transition-all duration-300 ${isPaused || isSnoozed ? 'text-slate-500 dark:text-slate-500' : 'text-slate-800 dark:text-white'} ${(isPaused || isSnoozed) ? 'animate-pulse' : ''}`}>
@@ -346,15 +346,15 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                   <PencilIcon className="w-5 h-5" />
               </button>
           </div>
-          {isSnoozed && <div className="text-sm text-amber-600 dark:text-amber-400 mt-2 font-bold animate-pulse">Auto-resuming in 5m</div>}
+          {isSnoozed && <div className="text-sm text-amber-600 dark:text-amber-400 mt-2 font-bold animate-pulse">5分鐘後自動繼續</div>}
         </div>
 
         {/* Notes Input */}
         <div className="w-full max-w-sm space-y-2">
-           <label className="text-xs font-bold text-slate-400 uppercase ml-1">Session Notes</label>
+           <label className="text-xs font-bold text-slate-400 uppercase ml-1">備註</label>
            <textarea
              className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none text-slate-700 dark:text-slate-200 bg-white/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 transition-colors"
-             placeholder="Add notes for this session..."
+             placeholder="新增備註..."
              value={appState.activeTimer.details?.notes || ''}
              onChange={(e) => updateActiveDetails({ notes: e.target.value })}
              rows={2}
@@ -425,13 +425,13 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     onClick={togglePause}
                     className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${isPaused && !isSnoozed ? 'bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                 >
-                    {isPaused && !isSnoozed ? 'Resume' : 'Pause'}
+                    {isPaused && !isSnoozed ? '繼續' : '暫停'}
                 </button>
                 <button
                     onClick={handleSnooze}
                     className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${isSnoozed ? 'bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                 >
-                    {isSnoozed ? 'Resume' : 'Snooze 5m'}
+                    {isSnoozed ? '繼續' : '貪睡 5分'}
                 </button>
             </div>
 
@@ -446,7 +446,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     onClick={stopTimer}
                     className={`flex-1 py-4 rounded-xl font-bold text-lg text-white shadow-lg transition-transform active:scale-95 ${isFeeding ? 'bg-pink-500 hover:bg-pink-600 shadow-pink-200 dark:shadow-none' : (isPumping ? 'bg-cyan-500 hover:bg-cyan-600 shadow-cyan-200 dark:shadow-none' : 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-200 dark:shadow-none')}`}
                 >
-                    Finish
+                    完成
                 </button>
             </div>
         </div>
@@ -455,23 +455,23 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         {showActiveEditModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowActiveEditModal(false)}>
                 <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden p-6" onClick={e => e.stopPropagation()}>
-                    <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-4">Edit Timer Start</h3>
+                    <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-4">編輯開始時間</h3>
                     <div className="space-y-4">
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Start Time</label>
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>
                             <input 
                                 type="datetime-local" 
                                 value={activeEditStartTime}
                                 onChange={e => setActiveEditStartTime(e.target.value)}
                                 className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-white rounded-lg text-sm"
                             />
-                            <p className="text-xs text-slate-400">Useful if you forgot to start the timer on time.</p>
+                            <p className="text-xs text-slate-400">如果您忘記按開始，可在此修正。</p>
                         </div>
                         <button 
                             onClick={saveActiveEdit}
                             className="w-full py-3 bg-slate-900 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
                         >
-                            Update Timer
+                            更新時間
                         </button>
                     </div>
                 </div>
@@ -486,33 +486,33 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     <div className="flex flex-col h-full p-6 space-y-6 overflow-y-auto">
       <header className="flex justify-between items-center">
         <div>
-           <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Quick Track</h1>
-           <p className="text-slate-500 dark:text-slate-400">What is baby doing?</p>
+           <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">快速記錄</h1>
+           <p className="text-slate-500 dark:text-slate-400">寶寶正在做什麼？</p>
         </div>
         <button 
           onClick={initManualEntry}
           className="text-sm font-bold text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/20 px-3 py-2 rounded-lg hover:bg-pink-100 dark:hover:bg-pink-900/30 transition-colors"
         >
-          + Log Past
+          + 補登紀錄
         </button>
       </header>
 
       {/* Last Activity Dashboard */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Last Fed</span>
+           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次餵奶</span>
            <span className="text-sm font-bold text-pink-600 dark:text-pink-400">
              {lastActivities.feeding ? formatTimeAgo(lastActivities.feeding.endTime || lastActivities.feeding.startTime) : '--'}
            </span>
         </div>
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Last Slept</span>
+           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次睡覺</span>
            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
              {lastActivities.sleep ? formatTimeAgo(lastActivities.sleep.endTime || lastActivities.sleep.startTime) : '--'}
            </span>
         </div>
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Diaper</span>
+           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次換片</span>
            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
              {lastActivities.diaper ? formatTimeAgo(lastActivities.diaper.startTime) : '--'}
            </span>
@@ -529,7 +529,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
             return (
                 <div className="bg-gradient-to-r from-indigo-500 to-violet-600 rounded-xl p-4 shadow-lg shadow-indigo-200 dark:shadow-none text-white flex justify-between items-center">
                     <div>
-                        <p className="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1">Estimated Next Nap</p>
+                        <p className="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1">預計下次小睡</p>
                         <p className="text-2xl font-bold">{timeStr}</p>
                         <p className="text-[10px] text-indigo-200 mt-1 opacity-80">{prediction.reason}</p>
                     </div>
@@ -554,8 +554,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
             <div className="w-14 h-14 bg-pink-100 dark:bg-pink-900/30 rounded-2xl flex items-center justify-center mb-4 text-pink-600 dark:text-pink-400">
               <MilkIcon className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Start Feeding</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Timer for nursing or bottle</p>
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">開始餵奶</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">親餵或瓶餵計時</p>
           </div>
         </button>
 
@@ -571,8 +571,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                 <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-4 text-indigo-600 dark:text-indigo-400">
                   <MoonIcon className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Start Sleeping</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Track nap or night sleep</p>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">開始睡覺</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">記錄小睡或長睡眠</p>
               </div>
             </button>
             {/* Quick Sleep Log Buttons Overlay */}
@@ -586,7 +586,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                         }}
                         className="flex-1 py-2 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors border border-indigo-100 dark:border-indigo-800"
                     >
-                        Log {mins < 60 ? `${mins}m` : `${mins/60}h`}
+                        記錄 {mins < 60 ? `${mins}分` : `${mins/60}小時`}
                     </button>
                 ))}
             </div>
@@ -595,7 +595,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       
       {/* Quick Add Diaper */}
       <div className="mt-auto">
-         <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mb-3 uppercase tracking-wider">Quick Diaper</p>
+         <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mb-3 uppercase tracking-wider">快速換片</p>
          <div className="grid grid-cols-3 gap-3">
             {['wet', 'dirty', 'mixed'].map((type) => (
                 <button
@@ -611,7 +611,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     }}
                     className="bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 py-3 rounded-xl text-sm font-medium capitalize transition-colors"
                 >
-                    {type}
+                    {type === 'wet' ? '濕' : (type === 'dirty' ? '髒' : '混合')}
                 </button>
             ))}
          </div>
@@ -625,8 +625,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
              onClick={e => e.stopPropagation()}
            >
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-                 <h3 className="font-bold text-slate-700 dark:text-slate-200">Log Past Activity</h3>
-                 <button onClick={() => setShowManualModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium">Cancel</button>
+                 <h3 className="font-bold text-slate-700 dark:text-slate-200">補登紀錄</h3>
+                 <button onClick={() => setShowManualModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium">取消</button>
               </div>
               
               <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
@@ -635,19 +635,19 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     <button 
                       onClick={() => setManualType('feeding')}
                       className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'feeding' ? 'bg-white dark:bg-slate-700 text-pink-600 dark:text-pink-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >Feeding</button>
+                    >餵奶</button>
                     <button 
                       onClick={() => setManualType('sleep')}
                       className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'sleep' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >Sleep</button>
+                    >睡眠</button>
                     <button 
                       onClick={() => setManualType('pumping')}
                       className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'pumping' ? 'bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >Pumping</button>
+                    >擠奶</button>
                     <button 
                       onClick={() => setManualType('solids')}
                       className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'solids' ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >Solids</button>
+                    >副食品</button>
                  </div>
                  
                  {/* Special "All Day Sleep" Shortcut */}
@@ -656,7 +656,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                       onClick={setAllDaySleep}
                       className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-2 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors w-full border border-indigo-100 dark:border-indigo-800 mb-2"
                     >
-                      Log "All Day Sleep" (Since Midnight)
+                      記錄此日為「整天睡覺」
                     </button>
                  )}
 
@@ -691,7 +691,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                 onClick={() => addDurationToManual(m)}
                                 className="shrink-0 px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-800"
                              >
-                                 +{m < 60 ? m+'m' : (m/60)+'h'}
+                                 +{m < 60 ? m+'分' : (m/60)+'小時'}
                              </button>
                          ))}
                      </div>
@@ -716,7 +716,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                              <div className="flex gap-2">
                                 <input
                                     type="text"
-                                    placeholder="Add food (e.g. 'Carrot')"
+                                    placeholder="新增食物 (如: '紅蘿蔔')"
                                     className="flex-1 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm"
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
@@ -742,14 +742,14 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                     Add
                                 </button>
                              </div>
-                             <p className="text-[10px] text-slate-400">Press Enter to add multiple items</p>
+                             <p className="text-[10px] text-slate-400">按 Enter 可新增多項</p>
                         </div>
 
                         <div className="space-y-1">
-                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Reaction?</label>
+                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">反應?</label>
                            <input 
                              type="text"
-                             placeholder="e.g. Rash, Fussiness (Optional)"
+                             placeholder="如: 紅疹, 脹氣 (選填)"
                              value={manualDetails.reaction || ''}
                              onChange={e => setManualDetails(p => ({ ...p, reaction: e.target.value }))}
                              className="w-full p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm"
@@ -764,11 +764,11 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                            <button 
                               onClick={() => setManualDetails(p => ({ ...p, feedingType: 'nursing' }))}
                               className={`px-4 py-2 rounded-lg text-sm font-medium border ${manualDetails.feedingType === 'nursing' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                           >Nursing</button>
+                           >親餵</button>
                            <button 
                               onClick={() => setManualDetails(p => ({ ...p, feedingType: 'bottle' }))}
                               className={`px-4 py-2 rounded-lg text-sm font-medium border ${manualDetails.feedingType === 'bottle' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                           >Bottle</button>
+                           >瓶餵</button>
                         </div>
 
                         {manualDetails.feedingType === 'nursing' && (

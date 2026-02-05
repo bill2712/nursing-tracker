@@ -194,20 +194,20 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   return (
     <div className="p-6 pb-24 space-y-6">
       <header className="flex flex-col space-y-3 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">History</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">歷史紀錄</h1>
         <div className="flex space-x-2">
             <button 
                 onClick={handleCreateClick}
                 className="text-xs font-bold text-white bg-pink-500 hover:bg-pink-600 px-3 py-2 rounded-lg transition-colors shadow-sm"
             >
-                + Log
+                + 新增紀錄
             </button>
             {logs.length > 0 && (
                 <button 
                     onClick={() => openExportModal(logs)}
                     className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
                 >
-                    Export All
+                    匯出全部
                 </button>
             )}
             {filteredLogs.length > 0 && (filterStart || filterEnd) && (
@@ -215,7 +215,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                     onClick={() => openExportModal(filteredLogs)}
                     className="text-xs font-bold text-white bg-slate-800 dark:bg-slate-700 px-3 py-2 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors shadow-sm"
                 >
-                    Export Filtered
+                    匯出篩選
                 </button>
             )}
         </div>
@@ -242,19 +242,19 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
         {/* Date Filter */}
         <div className="space-y-3">
             <div className="flex justify-between items-center">
-                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">Filter by Date</p>
+                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">依日期篩選</p>
                 {(filterStart || filterEnd) && (
                     <button 
                     onClick={() => { setFilterStart(''); setFilterEnd(''); }}
                     className="text-xs text-pink-500 font-bold"
                     >
-                    Clear
+                    清除
                     </button>
                 )}
             </div>
             <div className="flex space-x-3">
             <div className="flex-1 space-y-1">
-                <label className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase">From</label>
+                <label className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase">從</label>
                 <input 
                 type="date" 
                 value={filterStart}
@@ -263,7 +263,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                 />
             </div>
             <div className="flex-1 space-y-1">
-                <label className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase">To</label>
+                <label className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase">至</label>
                 <input 
                 type="date" 
                 value={filterEnd}
@@ -276,7 +276,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
 
         {/* Type Filter */}
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase mb-2">Activity Type</p>
+             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase mb-2">活動類型</p>
              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                 {(['all', 'feeding', 'sleep', 'diaper', 'pumping', 'solids'] as const).map(t => (
                     <button
@@ -297,7 +297,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
 
       {filteredLogs.length === 0 ? (
         <div className="text-center py-12 text-slate-400 dark:text-slate-600">
-          <p>No records found for this period.</p>
+          <p>此期間找不到紀錄。</p>
         </div>
       ) : (
         <div className="space-y-8">
@@ -370,7 +370,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                           }`}
                         >
                           {deletingId === String(log.id) ? (
-                            <span className="text-xs font-bold animate-fade-in whitespace-nowrap">Confirm</span>
+                            <span className="text-xs font-bold animate-fade-in whitespace-nowrap">確認刪除</span>
                           ) : (
                             <TrashIcon className="w-5 h-5 pointer-events-none" />
                           )}
@@ -395,10 +395,10 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowExportModal(false)}>
               <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden" onClick={e => e.stopPropagation()}>
                   <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-                      <h3 className="font-bold text-slate-800 dark:text-slate-100">Export Options</h3>
+                      <h3 className="font-bold text-slate-800 dark:text-slate-100">匯出選項</h3>
                   </div>
                   <div className="p-6 space-y-4">
-                      <p className="text-sm text-slate-500 dark:text-slate-400">Select columns to include in the CSV:</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">選擇要匯出的欄位:</p>
                       <div className="space-y-2">
                           {exportColumns.map(col => (
                               <label key={col.key} className="flex items-center space-x-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
@@ -417,13 +417,13 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                              onClick={() => setShowExportModal(false)}
                              className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl"
                           >
-                              Cancel
+                              取消
                           </button>
                           <button 
                              onClick={performExport}
                              className="flex-1 py-3 bg-slate-800 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-900 dark:hover:bg-slate-600"
                           >
-                              Download
+                              下載
                           </button>
                       </div>
                   </div>
@@ -436,9 +436,9 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setEditingLog(null)}>
           <div className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
-              <h3 className="font-bold text-slate-700 dark:text-slate-200">{isCreating ? 'Log Activity' : 'Edit Record'}</h3>
+              <h3 className="font-bold text-slate-700 dark:text-slate-200">{isCreating ? '新增紀錄' : '編輯紀錄'}</h3>
               <button onClick={() => setEditingLog(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-sm font-medium">
-                 Cancel
+                 取消
               </button>
             </div>
             
@@ -451,7 +451,12 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                             setEditType(t as ActivityType);
                         }}
                         className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${editType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
-                      >{t}</button>
+                      >{
+                        t === 'feeding' ? '餵奶' : 
+                        (t === 'sleep' ? '睡眠' : 
+                        (t === 'pumping' ? '擠奶' : 
+                        (t === 'solids' ? '副食品' : '換片')))
+                      }</button>
                   ))}
                </div>
 
@@ -493,11 +498,11 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                            <button 
                               onClick={() => setEditDetails(p => ({ ...p, feedingType: 'nursing' }))}
                               className={`px-4 py-2 rounded-lg text-sm font-medium border ${editDetails.feedingType === 'nursing' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                           >Nursing</button>
+                           >親餵</button>
                            <button 
                               onClick={() => setEditDetails(p => ({ ...p, feedingType: 'bottle' }))}
                               className={`px-4 py-2 rounded-lg text-sm font-medium border ${editDetails.feedingType === 'bottle' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                           >Bottle</button>
+                           >瓶餵</button>
                         </div>
 
                         {editDetails.feedingType === 'nursing' && (
@@ -604,10 +609,10 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                         </div>
 
                         <div className="space-y-1">
-                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Reaction?</label>
+                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">反應?</label>
                            <input 
                              type="text"
-                             placeholder="e.g. Rash"
+                             placeholder="如: 紅疹"
                              value={editDetails.reaction || ''}
                              onChange={e => setEditDetails(p => ({ ...p, reaction: e.target.value }))}
                              className="w-full p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm"
