@@ -18,7 +18,7 @@ import { collection, onSnapshot, query, orderBy, doc, setDoc, limit } from 'fire
 import { auth, db } from './services/firebase';
 import Login from './components/Login';
 
-const ALERT_emails = ["bill27122002@gmail.com", "suet0806@gmail.com", "pingwai03@gmail.com"];
+const ALERT_emails = ["bill27122002@gmail.com", "suet0806@gmail.com", "pingwai03@gmail.com", "Elsie.Li612@gmail.com"];
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
