@@ -61,6 +61,32 @@ export interface SleepGoal {
   minutes: number;
 }
 
+export interface Vaccine {
+  id: string;
+  name: string;
+  ageMonths: number; // 0 for birth
+  completed: boolean;
+  date?: number;
+  notes?: string;
+}
+
+export interface Milestone {
+  id: string;
+  category: 'motor' | 'language' | 'cognitive' | 'social';
+  description: string;
+  ageMonths: number;
+  completed: boolean;
+  date?: number;
+}
+
+export interface MilkStashEntry {
+  id: string;
+  date: number; // pumped date
+  amountMl: number;
+  notes?: string;
+  isFrozen: boolean;
+}
+
 export interface AppState {
   logs: LogEntry[];
   activeTimer: ActiveTimer | null;
@@ -69,6 +95,11 @@ export interface AppState {
   darkMode: boolean;
   growth: GrowthEntry[];
   babyProfile: BabyProfile;
+  health: {
+    vaccines: Vaccine[];
+    milestones: Milestone[];
+  };
+  milkStash: MilkStashEntry[];
 }
 
 export interface TimerDisplayProps {

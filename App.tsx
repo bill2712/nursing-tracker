@@ -6,9 +6,12 @@ import History from './components/History';
 import Analysis from './components/Analysis';
 import Settings from './components/Settings';
 import Growth from './components/Growth';
-import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, RulerIcon } from './components/Icons';
+import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, RulerIcon, HeartIcon, SnowflakeIcon } from './components/Icons';
+import Health from './components/Health';
+import MilkStash from './components/MilkStash';
+import { INITIAL_VACCINES, INITIAL_MILESTONES } from './data/healthData';
 
-type View = 'tracker' | 'history' | 'analysis' | 'growth' | 'settings';
+type View = 'tracker' | 'history' | 'analysis' | 'stash' | 'settings' | 'health';
 
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, doc, setDoc, limit } from 'firebase/firestore';
@@ -35,6 +38,10 @@ const App: React.FC = () => {
         birthDate: Date.now(),
         weightUnit: 'kg',
         lengthUnit: 'cm'
+    },
+    health: {
+        vaccines: INITIAL_VACCINES.map(v => ({ ...v, completed: false })),
+        milestones: INITIAL_MILESTONES.map(m => ({ ...m, completed: false }))
     }
   });
 
@@ -57,7 +64,17 @@ const App: React.FC = () => {
     const q = query(collection(db, 'logs'), orderBy('startTime', 'desc'), limit(500)); 
     const unsubLogs = onSnapshot(q, (snapshot) => {
       const logs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as LogEntry));
-      setAppState(prev => ({ ...prev, logs }));
+      setAppState(prev => ({ 
+          ...prev, 
+          logs,
+          // Merge in health data if not present (migration)
+          health: prev.health || {
+            vaccines: INITIAL_VACCINES.map(v => ({ ...v, completed: false })),
+            milestones: INITIAL_MILESTONES.map(m => ({ ...m, completed: false }))
+          },
+          // Merge in stash
+          milkStash: prev.milkStash || []
+      }));
     });
 
     // 2. Listen to Active Timer (Global Singleton)
@@ -117,6 +134,10 @@ const App: React.FC = () => {
         return <Growth appState={appState} setAppState={setAppState} />;
       case 'settings':
         return <Settings appState={appState} setAppState={setAppState} />;
+      case 'health':
+        return <Health appState={appState} setAppState={setAppState} />;
+      case 'stash':
+        return <MilkStash appState={appState} setAppState={setAppState} />;
       default:
         return <Tracker appState={appState} setAppState={setAppState} />;
     }
@@ -149,10 +170,16 @@ const App: React.FC = () => {
               label="分析" 
             />
             <NavButton 
-              active={currentView === 'growth'} 
-              onClick={() => setCurrentView('growth')} 
-              icon={<RulerIcon />} 
-              label="成長" 
+              active={currentView === 'stash'} 
+              onClick={() => setCurrentView('stash')} 
+              icon={<SnowflakeIcon />} 
+              label="庫存" 
+            />
+            <NavButton 
+              active={currentView === 'health'} 
+              onClick={() => setCurrentView('health')} 
+              icon={<HeartIcon />} 
+              label="健康" 
             />
             <NavButton 
               active={currentView === 'settings'} 
