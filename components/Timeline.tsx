@@ -86,7 +86,10 @@ const Timeline: React.FC<TimelineProps> = ({ logs, dayString, onEdit }) => {
                             {format(new Date(log.startTime), 'HH:mm')}
                             {log.endTime && ` - ${format(new Date(log.endTime), 'HH:mm')}`}
                             <span className="font-normal opacity-80 block truncate">
-                                {log.type === 'feeding' && (log.details.side || log.details.feedingType)}
+                                {log.type === 'feeding' && (
+                                  (log.details.side === 'left' ? '左' : (log.details.side === 'right' ? '右' : (log.details.side === 'both' ? '雙邊' : log.details.side))) || 
+                                  (log.details.feedingType === 'nursing' ? '親餵' : (log.details.feedingType === 'bottle' ? '瓶餵' : log.details.feedingType))
+                                )}
                                 {log.type === 'sleep' && formatDuration(log.durationSeconds || 0)}
                                 {log.details.notes}
                             </span>

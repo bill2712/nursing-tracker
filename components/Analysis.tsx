@@ -87,7 +87,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
           <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-            {hrs}h {mins}m Sleep
+            {hrs}時 {mins}分 睡眠
           </p>
         </div>
       );

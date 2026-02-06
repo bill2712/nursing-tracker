@@ -78,7 +78,7 @@ const App: React.FC = () => {
   // Handle Logout
   const handleLogout = () => signOut(auth);
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">Loading...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">載入中...</div>;
   if (!user) return <Login />;
 
   // ACCESS CHECK
@@ -134,31 +134,31 @@ const App: React.FC = () => {
               active={currentView === 'tracker'} 
               onClick={() => setCurrentView('tracker')} 
               icon={<ClockIcon />} 
-              label="Track" 
+              label="追蹤" 
             />
             <NavButton 
               active={currentView === 'history'} 
               onClick={() => setCurrentView('history')} 
               icon={<ListIcon />} 
-              label="History" 
+              label="紀錄" 
             />
             <NavButton 
               active={currentView === 'analysis'} 
               onClick={() => setCurrentView('analysis')} 
               icon={<BarChartIcon />} 
-              label="Insights" 
+              label="分析" 
             />
             <NavButton 
               active={currentView === 'growth'} 
               onClick={() => setCurrentView('growth')} 
               icon={<RulerIcon />} 
-              label="Growth" 
+              label="成長" 
             />
             <NavButton 
               active={currentView === 'settings'} 
               onClick={() => setCurrentView('settings')} 
               icon={<SettingsIcon />} 
-              label="Settings" 
+              label="設定" 
             />
           </nav>
       </div>

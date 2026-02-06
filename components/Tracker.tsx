@@ -368,11 +368,11 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                 <button 
                   onClick={() => updateActiveDetails({ feedingType: 'nursing' })}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${appState.activeTimer.details?.feedingType === 'nursing' ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
-                >Nursing</button>
+                >親餵</button>
                 <button 
                    onClick={() => updateActiveDetails({ feedingType: 'bottle' })}
                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${appState.activeTimer.details?.feedingType === 'bottle' ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
-                >Bottle</button>
+                >瓶餵</button>
              </div>
 
              {appState.activeTimer.details?.feedingType === 'nursing' && (
@@ -383,7 +383,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     onClick={() => updateActiveDetails({ side })}
                     className={`capitalize px-4 py-2 rounded-full border ${appState.activeTimer!.details?.side === side ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
                    >
-                     {side}
+                     {side === 'left' ? '左' : (side === 'right' ? '右' : '雙邊')}
                    </button>
                  ))}
                </div>
@@ -440,7 +440,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     onClick={cancelTimer}
                     className="flex-1 py-4 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-lg hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
                 >
-                    Cancel
+                    取消
                 </button>
                 <button 
                     onClick={stopTimer}
@@ -663,7 +663,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  {/* Time Inputs */}
                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Start Time</label>
+                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>
                        <input 
                          type="datetime-local" 
                          value={manualStartTime}
@@ -672,7 +672,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                        />
                     </div>
                     <div className="space-y-1">
-                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">End Time</label>
+                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">結束時間</label>
                        <input 
                          type="datetime-local" 
                          value={manualEndTime}
@@ -739,7 +739,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                     }}
                                     className="px-3 py-2 bg-orange-500 text-white rounded-lg font-bold text-sm"
                                 >
-                                    Add
+                                    新增
                                 </button>
                              </div>
                              <p className="text-[10px] text-slate-400">按 Enter 可新增多項</p>
@@ -779,7 +779,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                     onClick={() => setManualDetails(p => ({ ...p, side }))}
                                     className={`capitalize px-3 py-1.5 rounded-full text-sm border ${manualDetails.side === side ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}
                                  >
-                                    {side}
+                                    {side === 'left' ? '左' : (side === 'right' ? '右' : '雙邊')}
                                  </button>
                               ))}
                            </div>
@@ -790,7 +790,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                               <div className="flex justify-center items-center space-x-2">
                                 <input 
                                   type="number" 
-                                  placeholder="Amount" 
+                                  placeholder="份量" 
                                   value={manualDetails.amountMl || ''}
                                   className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
                                   onChange={e => setManualDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
@@ -815,10 +815,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  )}
 
                  <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
-                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Notes</label>
+                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">備註</label>
                    <textarea
                      className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none"
-                     placeholder="Add details..."
+                     placeholder="新增內容..."
                      value={manualDetails.notes || ''}
                      onChange={(e) => setManualDetails(p => ({ ...p, notes: e.target.value }))}
                      rows={3}
@@ -829,7 +829,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                    onClick={handleManualSubmit}
                    className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors"
                  >
-                    Save Record
+                    儲存紀錄
                  </button>
               </div>
            </div>

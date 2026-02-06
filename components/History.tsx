@@ -28,20 +28,26 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [logsToExport, setLogsToExport] = useState<LogEntry[]>([]);
   const [exportColumns, setExportColumns] = useState<ExportColumn[]>([
-    { key: 'id', label: 'Log ID', enabled: false, value: (l) => l.id },
-    { key: 'type', label: 'Activity Type', enabled: true, value: (l) => l.type },
-    { key: 'start', label: 'Start Time', enabled: true, value: (l) => format(new Date(l.startTime), 'yyyy-MM-dd HH:mm:ss') },
-    { key: 'end', label: 'End Time', enabled: true, value: (l) => l.endTime ? format(new Date(l.endTime), 'yyyy-MM-dd HH:mm:ss') : '' },
-    { key: 'duration', label: 'Duration (s)', enabled: true, value: (l) => (l.durationSeconds || 0).toString() },
-    { key: 'details', label: 'Details (Summary)', enabled: true, value: (l) => {
+    { key: 'id', label: '紀錄 ID', enabled: false, value: (l) => l.id },
+    { key: 'type', label: '活動類型', enabled: true, value: (l) => {
+        const types: Record<string, string> = { feeding: '餵奶', sleep: '睡眠', diaper: '換片', pumping: '擠奶', solids: '副食品' };
+        return types[l.type] || l.type;
+    }},
+    { key: 'start', label: '開始時間', enabled: true, value: (l) => format(new Date(l.startTime), 'yyyy-MM-dd HH:mm:ss') },
+    { key: 'end', label: '結束時間', enabled: true, value: (l) => l.endTime ? format(new Date(l.endTime), 'yyyy-MM-dd HH:mm:ss') : '' },
+    { key: 'duration', label: '持續時間 (秒)', enabled: true, value: (l) => (l.durationSeconds || 0).toString() },
+    { key: 'details', label: '詳細內容 (摘要)', enabled: true, value: (l) => {
         let det = [];
-        if (l.details.feedingType) det.push(l.details.feedingType);
-        if (l.details.side) det.push(l.details.side);
+        if (l.details.feedingType) det.push(l.details.feedingType === 'nursing' ? '親餵' : '瓶餵');
+        if (l.details.side) det.push(l.details.side === 'left' ? '左' : (l.details.side === 'right' ? '右' : '雙邊'));
         if (l.details.amountMl) det.push(`${l.details.amountMl}ml`);
-        if (l.details.diaperState) det.push(l.details.diaperState);
+        if (l.details.diaperState) {
+            const states: Record<string, string> = { wet: '濕', dirty: '髒', mixed: '混合' };
+            det.push(states[l.details.diaperState] || l.details.diaperState);
+        }
         return det.join('; ');
     }},
-    { key: 'notes', label: 'Notes', enabled: true, value: (l) => `"${(l.details.notes || '').replace(/"/g, '""')}"` }
+    { key: 'notes', label: '備註', enabled: true, value: (l) => `"${(l.details.notes || '').replace(/"/g, '""')}"` }
   ]);
   
   // Edit Form State
@@ -288,7 +294,11 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                             : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                         }`}
                     >
-                        {t}
+                        {t === 'all' ? '全部' :
+                         t === 'feeding' ? '餵奶' :
+                         t === 'sleep' ? '睡眠' :
+                         t === 'diaper' ? '換片' :
+                         t === 'pumping' ? '擠奶' : '副食品'}
                     </button>
                 ))}
              </div>
@@ -331,19 +341,26 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                           </div>
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize flex items-center gap-2 flex-wrap">
-                              {log.type}
+                              {log.type === 'feeding' ? '餵奶' : 
+                               log.type === 'sleep' ? '睡眠' : 
+                               log.type === 'pumping' ? '擠奶' : 
+                               log.type === 'solids' ? '副食品' : '換片'}
                               {log.durationSeconds && log.durationSeconds > 0 && (
                                 <span className={`text-xs px-2 py-0.5 rounded font-bold ${log.type === 'sleep' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                                     {formatDuration(log.durationSeconds)}
                                 </span>
                               )}
-                              {log.details.side && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.side}</span>}
+                              {log.details.side && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">
+                                  {log.details.side === 'left' ? '左' : (log.details.side === 'right' ? '右' : '雙邊')}
+                              </span>}
                               {log.details.amountMl && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.amountMl}ml</span>}
-                              {log.details.diaperState && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.diaperState}</span>}
+                              {log.details.diaperState && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">
+                                  {log.details.diaperState === 'wet' ? '濕' : (log.details.diaperState === 'dirty' ? '髒' : '混合')}
+                              </span>}
                               {log.details.foods && log.details.foods.map((food, i) => (
                                   <span key={i} className="text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-normal">{food}</span>
                               ))}
-                              {log.details.reaction && <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded font-bold border border-red-100 dark:border-red-900/50">Reaction: {log.details.reaction}</span>}
+                              {log.details.reaction && <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded font-bold border border-red-100 dark:border-red-900/50">反應: {log.details.reaction}</span>}
                               {log.details.foods && log.details.foods.map((food, i) => (
                                   <span key={i} className="text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-normal">{food}</span>
                               ))}
@@ -466,13 +483,13 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                      onClick={handleAllDaySleep}
                      className="w-full py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-bold rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors text-sm"
                    >
-                     Log "All Day Sleep" (Today)
+                     記錄此日為「整天睡覺」
                    </button>
                )}
 
                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Start</label>
+                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>
                      <input 
                        type="datetime-local" 
                        value={editStartTime}
@@ -481,7 +498,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                      />
                   </div>
                   <div className="space-y-1">
-                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">End</label>
+                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">結束時間</label>
                      <input 
                        type="datetime-local" 
                        value={editEndTime}
@@ -513,7 +530,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                                     onClick={() => setEditDetails(p => ({ ...p, side }))}
                                     className={`capitalize px-3 py-1.5 rounded-full text-sm border ${editDetails.side === side ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}
                                  >
-                                    {side}
+                                    {side === 'left' ? '左' : (side === 'right' ? '右' : '雙邊')}
                                  </button>
                               ))}
                            </div>
@@ -523,7 +540,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                            <div className="flex justify-center items-center space-x-2">
                               <input 
                                 type="number" 
-                                placeholder="Amount" 
+                                placeholder="份量" 
                                 value={editDetails.amountMl || ''}
                                 className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
                                 onChange={e => setEditDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
@@ -543,14 +560,14 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                               onClick={() => setEditDetails(p => ({ ...p, side }))}
                               className={`capitalize px-3 py-1.5 rounded-full text-sm border ${editDetails.side === side ? 'bg-cyan-500 text-white border-cyan-500' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}
                             >
-                              {side}
+                              {side === 'left' ? '左' : (side === 'right' ? '右' : '雙邊')}
                             </button>
                         ))}
                       </div>
                        <div className="flex justify-center items-center space-x-2">
                           <input 
                             type="number" 
-                            placeholder="Amount" 
+                            placeholder="份量" 
                             value={editDetails.amountMl || ''}
                             className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
                             onChange={e => setEditDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
@@ -563,7 +580,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                {editType === 'solids' && (
                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
                         <div className="space-y-2">
-                             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Foods</label>
+                             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">食物</label>
                              <div className="flex flex-wrap gap-2 mb-2">
                                 {editDetails.foods && editDetails.foods.map((food, i) => (
                                     <span key={i} className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
@@ -580,7 +597,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                              <div className="flex gap-2">
                                 <input
                                     type="text"
-                                    placeholder="Add food"
+                                    placeholder="新增食物"
                                     className="flex-1 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm"
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
@@ -603,7 +620,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                                     }}
                                     className="px-3 py-2 bg-orange-500 text-white rounded-lg font-bold text-sm"
                                 >
-                                    Add
+                                    新增
                                 </button>
                              </div>
                         </div>
@@ -623,7 +640,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
 
                {editType === 'diaper' && (
                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                       <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">Condition</p>
+                       <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">狀態</p>
                        <div className="flex space-x-2">
                            {['wet', 'dirty', 'mixed'].map((s) => (
                                <button
@@ -631,7 +648,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                                  onClick={() => setEditDetails(p => ({ ...p, diaperState: s as any }))}
                                  className={`flex-1 py-2 rounded-lg text-sm capitalize border ${editDetails.diaperState === s ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 font-bold' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
                                >
-                                   {s}
+                                   {s === 'wet' ? '濕' : (s === 'dirty' ? '髒' : '混合')}
                                </button>
                            ))}
                        </div>
@@ -639,10 +656,10 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                )}
 
                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">Notes</label>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">備註</label>
                   <textarea
                     className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none text-slate-700"
-                    placeholder="Add details..."
+                    placeholder="新增內容..."
                     value={editDetails.notes || ''}
                     onChange={(e) => setEditDetails(p => ({ ...p, notes: e.target.value }))}
                     rows={3}
@@ -653,7 +670,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                  onClick={saveEdit}
                  className="w-full py-3 bg-slate-900 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
                >
-                 {isCreating ? 'Create Log' : 'Save Changes'}
+                 {isCreating ? '新增紀錄' : '儲存變更'}
                </button>
             </div>
           </div>

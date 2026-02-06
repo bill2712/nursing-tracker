@@ -44,7 +44,7 @@ export const getAverageWakeWindow = (logs: LogEntry[]): number => {
 };
 
 export const predictNextNap = (logs: LogEntry[], averageWakeWindowMinutes: number): { time: number | null, reason: string } => {
-  if (averageWakeWindowMinutes === 0) return { time: null, reason: 'Not enough data' };
+  if (averageWakeWindowMinutes === 0) return { time: null, reason: '資料不足' };
 
   // Find the last sleep session
   const lastSleep = logs
@@ -52,7 +52,7 @@ export const predictNextNap = (logs: LogEntry[], averageWakeWindowMinutes: numbe
     .sort((a, b) => b.endTime! - a.endTime!)[0];
 
   if (!lastSleep || !lastSleep.endTime) {
-    return { time: null, reason: 'No recent sleep recorded' };
+    return { time: null, reason: '無近期睡眠紀錄' };
   }
 
   // Next nap = Last sleep end + Average Wake Window
@@ -60,6 +60,6 @@ export const predictNextNap = (logs: LogEntry[], averageWakeWindowMinutes: numbe
   
   return { 
     time: nextNapTime, 
-    reason: `Based on avg wake window of ${Math.floor(averageWakeWindowMinutes/60)}h ${averageWakeWindowMinutes%60}m` 
+    reason: `基於平均清醒時間 ${Math.floor(averageWakeWindowMinutes/60)}小時 ${averageWakeWindowMinutes%60}分` 
   };
 };

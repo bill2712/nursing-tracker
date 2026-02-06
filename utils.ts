@@ -11,9 +11,9 @@ export const formatDuration = (seconds: number): string => {
   const s = seconds % 60;
   
   if (h > 0) {
-    return `${h}h ${m}m ${s}s`;
+    return `${h}時 ${m}分 ${s}秒`;
   }
-  return `${m}m ${s}s`;
+  return `${m}分 ${s}秒`;
 };
 
 export const formatTimer = (totalSeconds: number): string => {
@@ -25,11 +25,11 @@ export const formatTimer = (totalSeconds: number): string => {
 
 export const formatTimeAgo = (timestamp: number): string => {
   const mins = differenceInMinutes(Date.now(), timestamp);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return '剛剛';
+  if (mins < 60) return `${mins}分鐘前`;
   const hours = Math.floor(mins / 60);
   const remainingMins = mins % 60;
-  return `${hours}h ${remainingMins}m ago`;
+  return `${hours}小時 ${remainingMins}分鐘前`;
 };
 
 export interface ExportColumn {
@@ -54,19 +54,22 @@ export const exportToCSV = (logs: LogEntry[], columns?: ExportColumn[]) => {
   // Default columns if not provided
   const defCols: ExportColumn[] = [
     { key: 'id', label: 'ID', enabled: true, value: (l) => l.id },
-    { key: 'type', label: 'Type', enabled: true, value: (l) => l.type },
-    { key: 'start', label: 'Start Time', enabled: true, value: (l) => format(new Date(l.startTime), 'yyyy-MM-dd HH:mm:ss') },
-    { key: 'end', label: 'End Time', enabled: true, value: (l) => l.endTime ? format(new Date(l.endTime), 'yyyy-MM-dd HH:mm:ss') : '' },
-    { key: 'duration', label: 'Duration (s)', enabled: true, value: (l) => (l.durationSeconds || 0).toString() },
-    { key: 'details', label: 'Details', enabled: true, value: (l) => {
+    { key: 'type', label: '類型', enabled: true, value: (l) => {
+        const map: Record<string, string> = { feeding: '餵奶', sleep: '睡眠', diaper: '換片', pumping: '擠奶', solids: '副食品' };
+        return map[l.type] || l.type;
+    }},
+    { key: 'start', label: '開始時間', enabled: true, value: (l) => format(new Date(l.startTime), 'yyyy-MM-dd HH:mm:ss') },
+    { key: 'end', label: '結束時間', enabled: true, value: (l) => l.endTime ? format(new Date(l.endTime), 'yyyy-MM-dd HH:mm:ss') : '' },
+    { key: 'duration', label: '持續時間 (秒)', enabled: true, value: (l) => (l.durationSeconds || 0).toString() },
+    { key: 'details', label: '詳情', enabled: true, value: (l) => {
         let det = [];
-        if (l.details.feedingType) det.push(l.details.feedingType);
-        if (l.details.side) det.push(l.details.side);
+        if (l.details.feedingType) det.push(l.details.feedingType === 'nursing' ? '親餵' : (l.details.feedingType === 'bottle' ? '瓶餵' : l.details.feedingType));
+        if (l.details.side) det.push(l.details.side === 'left' ? '左' : (l.details.side === 'right' ? '右' : (l.details.side === 'both' ? '雙邊' : l.details.side)));
         if (l.details.amountMl) det.push(`${l.details.amountMl}ml`);
-        if (l.details.diaperState) det.push(l.details.diaperState);
+        if (l.details.diaperState) det.push(l.details.diaperState === 'wet' ? '濕' : (l.details.diaperState === 'dirty' ? '髒' : (l.details.diaperState === 'mixed' ? '混合' : l.details.diaperState)));
         return det.join('; ');
     }},
-    { key: 'notes', label: 'Notes', enabled: true, value: (l) => `"${(l.details.notes || '').replace(/"/g, '""')}"` }
+    { key: 'notes', label: '備註', enabled: true, value: (l) => `"${(l.details.notes || '').replace(/"/g, '""')}"` }
   ];
 
   const colsToUse = columns || defCols;

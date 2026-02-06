@@ -122,7 +122,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
   };
 
   const deleteEntry = (id: string) => {
-    if (confirm("Delete this growth record?")) {
+    if (confirm("確定要刪除此成長紀錄？")) {
         setAppState(prev => ({
             ...prev,
             growth: prev.growth.filter(g => g.id !== id)
@@ -208,7 +208,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
           return (
              <div className="bg-white dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700 rounded text-xs">
                   <p className="font-bold">{format(new Date(p.date), 'PP')}</p>
-                  <p>Age: {p.age.toFixed(1)}m</p>
+                  <p>年齡: {p.age.toFixed(1)}m</p>
                   <p className="text-pink-500 font-bold text-sm">
                       {p.value.toFixed(2)} 
                       {activeTab === 'weight' ? profile.weightUnit : profile.lengthUnit}
@@ -223,8 +223,8 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
     <div className="p-6 pb-24 space-y-6">
       <header className="flex justify-between items-center">
         <div>
-           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Growth</h1>
-           <p className="text-xs text-slate-500">{profile.name}'s Progress</p>
+           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">成長紀錄</h1>
+           <p className="text-xs text-slate-500">{profile.name} 的成長進度</p>
         </div>
         <div className="flex space-x-2">
             <button 
@@ -232,7 +232,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                 className="text-white bg-pink-500 hover:bg-pink-600 p-2 rounded-xl transition-colors shadow-sm"
             >
                 <div className="flex items-center space-x-1 font-bold text-sm px-2">
-                    <span>+ Log</span>
+                    <span>+ 紀錄</span>
                 </div>
             </button>
         </div>
@@ -241,9 +241,9 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
       {/* Tabs */}
       <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex">
           {[
-              { id: 'weight', label: 'Weight' },
-              { id: 'length', label: 'Length' },
-              { id: 'head', label: 'Head' }
+              { id: 'weight', label: '體重' },
+              { id: 'length', label: '身高' },
+              { id: 'head', label: '頭圍' }
           ].map((tab: any) => (
               <button
                 key={tab.id}
@@ -261,7 +261,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
              onClick={() => toggleUnit(activeTab === 'weight' ? 'weight' : 'length')}
              className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1 rounded-full"
           >
-             Unit: {activeTab === 'weight' ? profile.weightUnit : profile.lengthUnit}
+             單位: {activeTab === 'weight' ? profile.weightUnit : profile.lengthUnit}
           </button>
       </div>
 
@@ -273,9 +273,9 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
              <XAxis 
                 type="number" 
                 dataKey="age" 
-                name="Age (months)" 
+                name="年齡 (月)" 
                 domain={[0, 'auto']} 
-                label={{ value: 'Age (months)', position: 'bottom', fontSize: 10, fill: '#94a3b8' }}
+                label={{ value: '年齡 (月)', position: 'bottom', fontSize: 10, fill: '#94a3b8' }}
                 tick={{fontSize: 10, fill: '#94a3b8'}}
              />
              <YAxis 
@@ -311,7 +311,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
 
       {/* History List */}
       <div className="space-y-3">
-          <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">History</h3>
+          <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">歷史紀錄</h3>
           {sortedGrowth.slice().reverse().map(entry => (
               <div 
                 key={entry.id}
@@ -323,7 +323,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                           {format(new Date(entry.date), 'PP')}
                       </div>
                       <div className="text-xs text-slate-400 mt-1">
-                          Age: {getAgeInMonths(profile.birthDate, entry.date).toFixed(1)}m
+                          年齡: {getAgeInMonths(profile.birthDate, entry.date).toFixed(1)}m
                       </div>
                   </div>
                   <div className="flex flex-col items-end text-sm">
@@ -366,7 +366,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                  
                  <div className="p-6 space-y-4">
                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Date</label>
+                        <label className="text-xs font-bold text-slate-500 uppercase">日期</label>
                         <input 
                           type="datetime-local" 
                           value={date}
@@ -377,7 +377,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                      
                      <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Weight ({profile.weightUnit})</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase">體重 ({profile.weightUnit})</label>
                             <input 
                                 type="number" step="0.01"
                                 value={weight}
@@ -387,7 +387,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                             />
                          </div>
                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Length ({profile.lengthUnit})</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase">身高 ({profile.lengthUnit})</label>
                             <input 
                                 type="number" step="0.1"
                                 value={length}
@@ -399,7 +399,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                      </div>
                      
                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Head Circ. ({profile.lengthUnit})</label>
+                        <label className="text-xs font-bold text-slate-500 uppercase">頭圍 ({profile.lengthUnit})</label>
                         <input 
                             type="number" step="0.1"
                             value={head}
@@ -410,7 +410,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                      </div>
 
                      <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Notes</label>
+                        <label className="text-xs font-bold text-slate-500 uppercase">備註</label>
                         <textarea
                             value={notes}
                             onChange={e => setNotes(e.target.value)}
@@ -420,8 +420,8 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                      </div>
 
                      <div className="flex gap-3 pt-2">
-                        <button onClick={() => setIsAdding(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl">Cancel</button>
-                        <button onClick={saveEntry} className="flex-1 py-3 bg-pink-500 text-white font-bold rounded-xl shadow-lg shadow-pink-200 dark:shadow-none">Save</button>
+                        <button onClick={() => setIsAdding(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl">取消</button>
+                        <button onClick={saveEntry} className="flex-1 py-3 bg-pink-500 text-white font-bold rounded-xl shadow-lg shadow-pink-200 dark:shadow-none">儲存</button>
                      </div>
                  </div>
              </div>
