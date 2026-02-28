@@ -459,7 +459,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
               </button>
             </div>
             
-            <div className="p-6 space-y-6 overflow-y-auto">
+            <div className="p-6 space-y-6 overflow-y-auto w-full">
                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                   {['feeding', 'sleep', 'diaper', 'pumping', 'solids'].map((t) => (
                       <button 
@@ -665,7 +665,9 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                     rows={3}
                   />
                </div>
-
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-safe">
                <button 
                  onClick={saveEdit}
                  className="w-full py-3 bg-slate-900 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"

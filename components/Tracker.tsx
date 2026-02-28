@@ -621,15 +621,15 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       {showManualModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowManualModal(false)}>
            <div 
-             className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in" 
+             className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in flex flex-col max-h-[90vh]" 
              onClick={e => e.stopPropagation()}
            >
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
                  <h3 className="font-bold text-slate-700 dark:text-slate-200">補登紀錄</h3>
                  <button onClick={() => setShowManualModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium">取消</button>
               </div>
               
-              <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+              <div className="p-6 space-y-6 overflow-y-auto w-full">
                  {/* Type Selector */}
                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                     <button 
@@ -824,7 +824,9 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                      rows={3}
                    />
                  </div>
-
+              </div>
+              
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-safe">
                  <button 
                    onClick={handleManualSubmit}
                    className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors"
