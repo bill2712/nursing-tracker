@@ -160,11 +160,11 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
       if (filterStart) {
-        const startDate = startOfDay(new Date(filterStart));
+        const startDate = startOfDay(new Date(filterStart + 'T00:00:00'));
         if (log.startTime < startDate.getTime()) return false;
       }
       if (filterEnd) {
-        const endDate = endOfDay(new Date(filterEnd));
+        const endDate = endOfDay(new Date(filterEnd + 'T00:00:00'));
         if (log.startTime > endDate.getTime()) return false;
       }
       if (filterType !== 'all' && log.type !== filterType) {
@@ -314,7 +314,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
           {sortedDates.map(date => (
             <div key={date}>
               <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 sticky top-0 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur py-2 z-10 border-b border-slate-50/0">
-                {format(new Date(date), 'EEEE, MMMM do')}
+                {format(new Date(date + 'T00:00:00'), 'EEEE, MMMM do')}
               </h3>
               
               {viewMode === 'list' ? (
