@@ -826,10 +826,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  </div>
               </div>
               
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-safe">
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-10 sm:pb-4">
                  <button 
                    onClick={handleManualSubmit}
-                   className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors"
+                   className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors shadow-lg"
                  >
                     儲存紀錄
                  </button>
