@@ -146,7 +146,7 @@ const App: React.FC = () => {
   return (
     <div className={`h-screen w-full flex flex-col mx-auto max-w-md shadow-2xl overflow-hidden relative ${appState.darkMode ? 'dark' : ''}`}>
       <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-          <main className="flex-1 overflow-y-auto no-scrollbar relative z-0">
+          <main className="flex-1 overflow-y-auto no-scrollbar relative">
              {renderView()}
           </main>
 
