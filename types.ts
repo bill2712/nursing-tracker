@@ -79,12 +79,20 @@ export interface Milestone {
   date?: number;
 }
 
-export interface MilkStashEntry {
-  id: string;
-  date: number; // pumped date
-  amountMl: number;
-  notes?: string;
-  isFrozen: boolean;
+export interface ChecklistItem {
+  id: string; // e.g. "m2-social-1" "m1-care-1"
+  category: 'ability' | 'exercise' | 'care';
+  title: string;
+  description: string;
+}
+
+export interface MonthChecklistData {
+  month: number;
+  title: string; // e.g., "第 2 個月"
+  description: string;
+  abilities: ChecklistItem[];
+  exercises: ChecklistItem[];
+  careTasks: ChecklistItem[];
 }
 
 export interface AppState {
@@ -99,7 +107,7 @@ export interface AppState {
     vaccines: Vaccine[];
     milestones: Milestone[];
   };
-  milkStash: MilkStashEntry[];
+  completedChecklistItems: string[];
 }
 
 export interface TimerDisplayProps {

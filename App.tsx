@@ -8,10 +8,10 @@ import Settings from './components/Settings';
 import Growth from './components/Growth';
 import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, RulerIcon, HeartIcon, SnowflakeIcon } from './components/Icons';
 import Health from './components/Health';
-import MilkStash from './components/MilkStash';
+import DevelopmentChecklist from './components/DevelopmentChecklist';
 import { INITIAL_VACCINES, INITIAL_MILESTONES } from './data/healthData';
 
-type View = 'tracker' | 'history' | 'analysis' | 'stash' | 'settings' | 'health';
+type View = 'tracker' | 'history' | 'analysis' | 'checklist' | 'settings' | 'health';
 
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, doc, setDoc, limit } from 'firebase/firestore';
@@ -42,7 +42,8 @@ const App: React.FC = () => {
     health: {
         vaccines: INITIAL_VACCINES.map(v => ({ ...v, completed: false })),
         milestones: INITIAL_MILESTONES.map(m => ({ ...m, completed: false }))
-    }
+    },
+    completedChecklistItems: []
   });
 
   const [currentView, setCurrentView] = useState<View>('tracker');
@@ -72,8 +73,8 @@ const App: React.FC = () => {
             vaccines: INITIAL_VACCINES.map(v => ({ ...v, completed: false })),
             milestones: INITIAL_MILESTONES.map(m => ({ ...m, completed: false }))
           },
-          // Merge in stash
-          milkStash: prev.milkStash || []
+          // Merge in checklist
+          completedChecklistItems: prev.completedChecklistItems || []
       }));
     });
 
@@ -136,8 +137,8 @@ const App: React.FC = () => {
         return <Settings appState={appState} setAppState={setAppState} />;
       case 'health':
         return <Health appState={appState} setAppState={setAppState} />;
-      case 'stash':
-        return <MilkStash appState={appState} setAppState={setAppState} />;
+      case 'checklist':
+        return <DevelopmentChecklist appState={appState} setAppState={setAppState} />;
       default:
         return <Tracker appState={appState} setAppState={setAppState} />;
     }
@@ -170,10 +171,10 @@ const App: React.FC = () => {
               label="分析" 
             />
             <NavButton 
-              active={currentView === 'stash'} 
-              onClick={() => setCurrentView('stash')} 
-              icon={<SnowflakeIcon />} 
-              label="庫存" 
+              active={currentView === 'checklist'} 
+              onClick={() => setCurrentView('checklist')} 
+              icon={<ListIcon />} 
+              label="發展" 
             />
             <NavButton 
               active={currentView === 'health'} 
