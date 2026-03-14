@@ -545,27 +545,56 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         </div>
       </div>
       
-      {/* Quick Add Diaper */}
-      <div className="mt-auto">
-         <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mb-3 uppercase tracking-wider">快速換片</p>
-         <div className="grid grid-cols-3 gap-3">
-            {['wet', 'dirty', 'mixed'].map((type) => (
-                <button
-                    key={type}
-                    onClick={async () => {
-                        const newLog: LogEntry = {
-                            id: generateId(),
-                            type: 'diaper',
-                            startTime: Date.now(),
-                            details: { diaperState: type as any }
-                        };
-                        await setDoc(doc(db, 'logs', newLog.id), newLog);
-                    }}
-                    className="bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 py-3 rounded-xl text-sm font-medium capitalize transition-colors"
-                >
-                    {type === 'wet' ? '濕' : (type === 'dirty' ? '髒' : '混合')}
-                </button>
-            ))}
+      {/* Quick Actions (Bottom) */}
+      <div className="mt-auto space-y-4">
+         {/* Quick Add Diaper */}
+         <div>
+            <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mb-3 uppercase tracking-wider">快速換片</p>
+            <div className="grid grid-cols-3 gap-3">
+               {['wet', 'dirty', 'mixed'].map((type) => (
+                   <button
+                       key={type}
+                       onClick={async () => {
+                           const newLog: LogEntry = {
+                               id: generateId(),
+                               type: 'diaper',
+                               startTime: Date.now(),
+                               details: { diaperState: type as any }
+                           };
+                           await setDoc(doc(db, 'logs', newLog.id), newLog);
+                       }}
+                       className="bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 py-3 rounded-xl text-sm font-medium capitalize transition-colors"
+                   >
+                       {type === 'wet' ? '濕' : (type === 'dirty' ? '髒' : '混合')}
+                   </button>
+               ))}
+            </div>
+         </div>
+
+         {/* Quick Add Colic */}
+         <div>
+            <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mb-3 uppercase tracking-wider">快速 Colic</p>
+            <div className="grid grid-cols-3 gap-3">
+               {[15, 30, 60].map((mins) => (
+                   <button
+                       key={mins}
+                       onClick={async () => {
+                           const newLog: LogEntry = {
+                               id: generateId(),
+                               type: 'colic',
+                               startTime: Date.now() - (mins * 60 * 1000),
+                               endTime: Date.now(),
+                               durationSeconds: mins * 60,
+                               details: {}
+                           };
+                           await setDoc(doc(db, 'logs', newLog.id), newLog);
+                       }}
+                       className="bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 border border-rose-100 dark:border-rose-800 text-rose-700 dark:text-rose-400 py-3 rounded-xl text-sm font-medium transition-colors"
+                   >
+                       記錄 {mins === 60 ? '1小時' : `${mins}分鐘`}
+                   </button>
+               ))}
+            </div>
          </div>
       </div>
 
@@ -600,6 +629,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                       onClick={() => setManualType('solids')}
                       className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'solids' ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                     >副食品</button>
+                    <button 
+                      onClick={() => setManualType('colic')}
+                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'colic' ? 'bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                    >Colic</button>
                  </div>
                  
                  {/* Special "All Day Sleep" Shortcut removed for bath */}

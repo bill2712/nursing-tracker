@@ -2,7 +2,7 @@ import React from 'react';
 import { format, differenceInMinutes, startOfDay } from 'date-fns';
 import { LogEntry } from '../types';
 import { formatDuration } from '../utils';
-import { MilkIcon, MoonIcon, BabyIcon, PumpIcon, FoodIcon, DropletIcon } from './Icons';
+import { MilkIcon, MoonIcon, BabyIcon, PumpIcon, FoodIcon, DropletIcon, ColicIcon } from './Icons';
 
 interface TimelineProps {
   logs: LogEntry[];
@@ -66,6 +66,7 @@ const Timeline: React.FC<TimelineProps> = ({ logs, dayString, onEdit }) => {
                else if (log.type === 'sleep') { bgColor = 'bg-indigo-200 dark:bg-indigo-900/60'; textColor = 'text-indigo-800 dark:text-indigo-200'; }
                else if (log.type === 'diaper') { bgColor = 'bg-emerald-200 dark:bg-emerald-900/60'; textColor = 'text-emerald-800 dark:text-emerald-200'; }
                else if (log.type === 'pumping') { bgColor = 'bg-cyan-200 dark:bg-cyan-900/60'; textColor = 'text-cyan-800 dark:text-cyan-200'; }
+               else if (log.type === 'colic') { bgColor = 'bg-rose-200 dark:bg-rose-900/60'; textColor = 'text-rose-800 dark:text-rose-200'; }
                else if (log.type === 'solids') { bgColor = 'bg-orange-200 dark:bg-orange-900/60'; textColor = 'text-orange-800 dark:text-orange-200'; }
 
                return (
@@ -80,6 +81,7 @@ const Timeline: React.FC<TimelineProps> = ({ logs, dayString, onEdit }) => {
                             {log.type === 'sleep' && <DropletIcon className="w-3 h-3" />}
                             {log.type === 'diaper' && <BabyIcon className="w-3 h-3" />}
                             {log.type === 'pumping' && <PumpIcon className="w-3 h-3" />}
+                            {log.type === 'colic' && <ColicIcon className="w-3 h-3" />}
                             {log.type === 'solids' && <FoodIcon className="w-3 h-3" />}
                         </div>
                         <div className="text-[10px] font-bold leading-tight truncate">

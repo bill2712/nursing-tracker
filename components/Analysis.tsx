@@ -26,6 +26,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
   const feedsTotal = todaysLogs.filter(l => l.type === 'feeding').length;
   const diaperTotal = todaysLogs.filter(l => l.type === 'diaper').length;
+  const colicTotal = todaysLogs.filter(l => l.type === 'colic').length;
   const pumpingTotal = todaysLogs.filter(l => l.type === 'pumping').length;
   const pumpingVolume = todaysLogs
     .filter(l => l.type === 'pumping')
@@ -50,6 +51,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
     { name: '餵奶', value: feedsTotal, color: '#ec4899' },
     { name: '沖涼 (時)', value: Math.round(sleepTotalHours), color: '#6366f1' },
     { name: '換片', value: diaperTotal, color: '#10b981' },
+    { name: 'Colic', value: colicTotal, color: '#f43f5e' },
     { name: '擠奶', value: pumpingTotal, color: '#06b6d4' },
   ];
 
@@ -101,7 +103,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       </header>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
           <div className="text-2xl font-bold text-pink-500">{feedsTotal}</div>
           <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">餵奶次數</div>
@@ -118,6 +120,10 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
           <div className="text-2xl font-bold text-emerald-500">{diaperTotal}</div>
           <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">換片次數</div>
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
+          <div className="text-2xl font-bold text-rose-500">{colicTotal}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Colic次數</div>
         </div>
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
           <div className="text-2xl font-bold text-cyan-500">{pumpingVolume}ml</div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { format, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
 import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
 import { formatDuration, exportToCSV, ExportColumn, generateId } from '../utils';
-import { TrashIcon, MilkIcon, MoonIcon, BabyIcon, PencilIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon, DropletIcon } from './Icons';
+import { TrashIcon, MilkIcon, MoonIcon, BabyIcon, PencilIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon, DropletIcon, ColicIcon } from './Icons';
 import Timeline from './Timeline';
 
 interface HistoryProps {
@@ -30,7 +30,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   const [exportColumns, setExportColumns] = useState<ExportColumn[]>([
     { key: 'id', label: '紀錄 ID', enabled: false, value: (l) => l.id },
     { key: 'type', label: '活動類型', enabled: true, value: (l) => {
-        const types: Record<string, string> = { feeding: '餵奶', sleep: '沖涼', diaper: '換片', pumping: '擠奶', solids: '副食品' };
+        const types: Record<string, string> = { feeding: '餵奶', sleep: '沖涼', diaper: '換片', pumping: '擠奶', solids: '副食品', colic: 'Colic' };
         return types[l.type] || l.type;
     }},
     { key: 'start', label: '開始時間', enabled: true, value: (l) => format(new Date(l.startTime), 'yyyy-MM-dd HH:mm:ss') },
@@ -281,7 +281,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase mb-2">活動類型</p>
              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                {(['all', 'feeding', 'sleep', 'diaper', 'pumping', 'solids'] as const).map(t => (
+                {(['all', 'feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic'] as const).map(t => (
                     <button
                         key={t}
                         onClick={() => setFilterType(t)}
@@ -295,7 +295,9 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                          t === 'feeding' ? '餵奶' :
                          t === 'sleep' ? '沖涼' :
                          t === 'diaper' ? '換片' :
-                         t === 'pumping' ? '擠奶' : '副食品'}
+                         t === 'pumping' ? '擠奶' : 
+                         t === 'solids' ? '副食品' :
+                         t === 'colic' ? 'Colic' : '未知類型'}
                     </button>
                 ))}
              </div>
@@ -328,20 +330,24 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                             log.type === 'sleep' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' :
                             log.type === 'pumping' ? 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400' :
                             log.type === 'solids' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' :
+                            log.type === 'colic' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' :
                             'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
                           }`}>
                              {log.type === 'feeding' && <MilkIcon className="w-5 h-5" />}
                              {log.type === 'sleep' && <DropletIcon className="w-5 h-5" />}
                              {log.type === 'pumping' && <PumpIcon className="w-5 h-5" />}
                              {log.type === 'solids' && <FoodIcon className="w-5 h-5" />}
+                             {log.type === 'colic' && <ColicIcon className="w-5 h-5" />}
                              {log.type === 'diaper' && <BabyIcon className="w-5 h-5" />}
                           </div>
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize flex items-center gap-2 flex-wrap">
                               {log.type === 'feeding' ? '餵奶' : 
                                log.type === 'sleep' ? '沖涼' : 
+                               log.type === 'diaper' ? '換片' : 
                                log.type === 'pumping' ? '擠奶' : 
-                               log.type === 'solids' ? '副食品' : '換片'}
+                               log.type === 'solids' ? '副食品' : 
+                               log.type === 'colic' ? 'Colic' : '未知類型'}
                               {log.durationSeconds && log.durationSeconds > 0 && (
                                 <span className={`text-xs px-2 py-0.5 rounded font-bold ${log.type === 'sleep' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                                     {formatDuration(log.durationSeconds)}
@@ -458,7 +464,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
             
             <div className="p-6 space-y-6 overflow-y-auto w-full">
                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                  {['feeding', 'sleep', 'diaper', 'pumping', 'solids'].map((t) => (
+                  {['feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic'].map((t) => (
                       <button 
                         key={t}
                         onClick={() => {
@@ -469,7 +475,8 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                         t === 'feeding' ? '餵奶' : 
                         (t === 'sleep' ? '沖涼' : 
                         (t === 'pumping' ? '擠奶' : 
-                        (t === 'solids' ? '副食品' : '換片')))
+                        (t === 'solids' ? '副食品' : 
+                        (t === 'colic' ? 'Colic' : '換片'))))
                       }</button>
                   ))}
                </div>
