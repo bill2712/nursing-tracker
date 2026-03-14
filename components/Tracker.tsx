@@ -476,6 +476,9 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
            <span className="text-sm font-bold text-pink-600 dark:text-pink-400">
              {lastActivities.feeding ? formatTimeAgo(lastActivities.feeding.endTime || lastActivities.feeding.startTime) : '--'}
            </span>
+           {lastActivities.feeding?.details?.amountMl && (
+             <span className="text-xs font-semibold text-pink-500/70 mt-0.5">{lastActivities.feeding.details.amountMl}ml</span>
+           )}
         </div>
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次沖涼</span>
@@ -488,6 +491,22 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
              {lastActivities.diaper ? formatTimeAgo(lastActivities.diaper.startTime) : '--'}
            </span>
+           {lastActivities.diaper?.details?.diaperState && (
+             <span className="text-xs font-semibold text-emerald-500/70 mt-0.5">
+               {lastActivities.diaper.details.diaperState === 'wet' ? '濕' : lastActivities.diaper.details.diaperState === 'dirty' ? '髒' : '混合'}
+             </span>
+           )}
+        </div>
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
+           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次 Colic</span>
+           <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
+             {lastActivities.colic ? formatTimeAgo(lastActivities.colic.startTime) : '--'}
+           </span>
+           {lastActivities.colic?.durationSeconds ? (
+             <span className="text-xs font-semibold text-rose-500/70 mt-0.5">
+               維持 {Math.round(lastActivities.colic.durationSeconds / 60)} 分鐘
+             </span>
+           ) : null}
         </div>
       </div>
 
