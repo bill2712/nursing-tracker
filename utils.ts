@@ -24,12 +24,18 @@ export const formatTimer = (totalSeconds: number): string => {
 };
 
 export const formatTimeAgo = (timestamp: number): string => {
-  const mins = differenceInMinutes(Date.now(), timestamp);
+  const mins = Math.max(0, differenceInMinutes(Date.now(), timestamp));
   if (mins < 1) return '剛剛';
   if (mins < 60) return `${mins}分鐘前`;
   const hours = Math.floor(mins / 60);
   const remainingMins = mins % 60;
-  return `${hours}小時 ${remainingMins}分鐘前`;
+  
+  if (hours < 24) {
+    return `${hours}小時 ${remainingMins}分鐘前`;
+  }
+  
+  const days = Math.floor(hours / 24);
+  return `${days}天前`;
 };
 
 export interface ExportColumn {

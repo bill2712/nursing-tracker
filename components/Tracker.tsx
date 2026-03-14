@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { startOfWeek, startOfDay } from 'date-fns';
 import { MilkIcon, MoonIcon, ClockIcon, PencilIcon, PumpIcon, FoodIcon, DropletIcon } from './Icons';
 import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
 import { formatTimer, generateId, formatTimeAgo } from '../utils';
@@ -66,7 +67,20 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       diaper: sorted.find(l => l.type === 'diaper'),
       pumping: sorted.find(l => l.type === 'pumping'),
       solids: sorted.find(l => l.type === 'solids'),
+      colic: sorted.find(l => l.type === 'colic'),
     };
+  }, [appState.logs]);
+
+  const weeklyBathCount = useMemo(() => {
+    const now = Date.now();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 }).getTime();
+    return appState.logs.filter(l => l.type === 'sleep' && l.startTime >= weekStart).length;
+  }, [appState.logs]);
+
+  const dailyColicCount = useMemo(() => {
+    const now = Date.now();
+    const dayStart = startOfDay(now).getTime();
+    return appState.logs.filter(l => l.type === 'colic' && l.startTime >= dayStart).length;
   }, [appState.logs]);
 
   // --- Firestore Actions ---
@@ -485,6 +499,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
              {lastActivities.sleep ? formatTimeAgo(lastActivities.sleep.endTime || lastActivities.sleep.startTime) : '--'}
            </span>
+           <span className="text-xs font-semibold text-indigo-500/70 mt-0.5">本週 {weeklyBathCount} 次</span>
         </div>
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次換片</span>
@@ -502,11 +517,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
            <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
              {lastActivities.colic ? formatTimeAgo(lastActivities.colic.startTime) : '--'}
            </span>
-           {lastActivities.colic?.durationSeconds ? (
-             <span className="text-xs font-semibold text-rose-500/70 mt-0.5">
-               維持 {Math.round(lastActivities.colic.durationSeconds / 60)} 分鐘
-             </span>
-           ) : null}
+           <span className="text-xs font-semibold text-rose-500/70 mt-0.5">
+             {lastActivities.colic?.durationSeconds ? `維持 ${Math.round(lastActivities.colic.durationSeconds / 60)} 分鐘` : ' '}
+             {(lastActivities.colic?.durationSeconds ? '，' : '')}今日 {dailyColicCount} 次
+           </span>
         </div>
       </div>
 
