@@ -38,8 +38,6 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
     { key: 'duration', label: '持續時間 (秒)', enabled: true, value: (l) => (l.durationSeconds || 0).toString() },
     { key: 'details', label: '詳細內容 (摘要)', enabled: true, value: (l) => {
         let det = [];
-        if (l.details.feedingType) det.push(l.details.feedingType === 'nursing' ? '親餵' : '瓶餵');
-        if (l.details.side) det.push(l.details.side === 'left' ? '左' : (l.details.side === 'right' ? '右' : '雙邊'));
         if (l.details.amountMl) det.push(`${l.details.amountMl}ml`);
         if (l.details.diaperState) {
             const states: Record<string, string> = { wet: '濕', dirty: '髒', mixed: '混合' };
@@ -125,8 +123,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
 
     // Sanitize details based on type to avoid junk data
     const sanitizedDetails: LogEntry['details'] = { ...editDetails };
-    if (editType !== 'feeding') {
-        delete sanitizedDetails.feedingType;
+    if (editType !== 'feeding' && editType !== 'pumping') {
         delete sanitizedDetails.side;
         delete sanitizedDetails.amountMl;
     }
@@ -502,33 +499,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                {/* Dynamic Details Fields */}
                {editType === 'feeding' && (
                    <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                        <div className="flex justify-center space-x-3">
-                           <button 
-                              onClick={() => setEditDetails(p => ({ ...p, feedingType: 'nursing' }))}
-                              className={`px-4 py-2 rounded-lg text-sm font-medium border ${editDetails.feedingType === 'nursing' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                           >親餵</button>
-                           <button 
-                              onClick={() => setEditDetails(p => ({ ...p, feedingType: 'bottle' }))}
-                              className={`px-4 py-2 rounded-lg text-sm font-medium border ${editDetails.feedingType === 'bottle' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                           >瓶餵</button>
-                        </div>
-
-                        {editDetails.feedingType === 'nursing' && (
-                           <div className="flex justify-center space-x-2">
-                              {(['left', 'right', 'both'] as const).map(side => (
-                                 <button
-                                    key={side}
-                                    onClick={() => setEditDetails(p => ({ ...p, side }))}
-                                    className={`capitalize px-3 py-1.5 rounded-full text-sm border ${editDetails.side === side ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}
-                                 >
-                                    {side === 'left' ? '左' : (side === 'right' ? '右' : '雙邊')}
-                                 </button>
-                              ))}
-                           </div>
-                        )}
-                        
-                        {editDetails.feedingType === 'bottle' && (
-                           <div className="flex justify-center items-center space-x-2">
+                      <div className="flex justify-center items-center space-x-2">
                               <input 
                                 type="number" 
                                 placeholder="份量" 
@@ -538,7 +509,6 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                               />
                               <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
                            </div>
-                        )}
                    </div>
                )}
 

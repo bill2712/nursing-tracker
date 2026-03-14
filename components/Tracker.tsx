@@ -16,16 +16,15 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
   const [elapsed, setElapsed] = useState(0);
   const [showManualModal, setShowManualModal] = useState(false);
   
-  // Active Timer Edit Modal State
-  const [showActiveEditModal, setShowActiveEditModal] = useState(false);
-  const [activeEditStartTime, setActiveEditStartTime] = useState('');
-
-  // Manual Entry State
   const [manualType, setManualType] = useState<ActivityType>('feeding');
   const [manualStartTime, setManualStartTime] = useState('');
   const [manualEndTime, setManualEndTime] = useState('');
-  const [manualDetails, setManualDetails] = useState<LogEntry['details']>({ feedingType: 'nursing', side: 'left', foods: [] });
+  const [manualDetails, setManualDetails] = useState<LogEntry['details']>({ feedingType: 'bottle', foods: [] });
   const [newFoodInput, setNewFoodInput] = useState('');
+
+  // Active Timer Edit Modal State
+  const [showActiveEditModal, setShowActiveEditModal] = useState(false);
+  const [activeEditStartTime, setActiveEditStartTime] = useState('');
 
   // Timer Tick
   useEffect(() => {
@@ -77,10 +76,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       type,
       startTime: Date.now(),
       ignoredDurationMs: 0,
-      details: {
-        side: (type === 'feeding' || type === 'pumping') ? 'left' : undefined, 
-        feedingType: type === 'feeding' ? 'nursing' : undefined
-      }
+      details: type === 'feeding' ? { feedingType: 'bottle' } : {} // Default feeding to bottle
     };
     await setDoc(doc(db, 'system', 'activeTimer'), newTimer);
   };
@@ -245,7 +241,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       startTime: start,
       endTime: end,
       durationSeconds: Math.floor((end - start) / 1000),
-      details: manualDetails
+      details: manualType === 'feeding' ? { ...manualDetails, feedingType: 'bottle' } : manualDetails // Ensure feedingType is bottle for manual feeding
     };
 
     await setDoc(doc(db, 'logs', newLog.id), newLog);
@@ -258,7 +254,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     setManualStartTime(localIso);
     setManualEndTime(localIso);
     setManualType('feeding');
-    setManualDetails({ feedingType: 'nursing', side: 'left', foods: [] });
+    setManualDetails({ feedingType: 'bottle', foods: [] }); // Default to bottle
     setNewFoodInput('');
     setShowManualModal(true);
   };
@@ -361,60 +357,36 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
            />
         </div>
 
-        {/* Feeding Controls */}
+        {/* Simplified Feeding Controls (Input ML directly) */}
         {isFeeding && (
           <div className="w-full max-w-sm space-y-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
-             <div className="flex justify-center space-x-2">
-                <button 
-                  onClick={() => updateActiveDetails({ feedingType: 'nursing' })}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${appState.activeTimer.details?.feedingType === 'nursing' ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
-                >親餵</button>
-                <button 
-                   onClick={() => updateActiveDetails({ feedingType: 'bottle' })}
-                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${appState.activeTimer.details?.feedingType === 'bottle' ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border border-pink-200 dark:border-pink-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}
-                >瓶餵</button>
-             </div>
-
-             {appState.activeTimer.details?.feedingType === 'nursing' && (
-               <div className="flex justify-center space-x-4">
-                 {(['left', 'right', 'both'] as const).map(side => (
-                   <button
-                    key={side}
-                    onClick={() => updateActiveDetails({ side })}
-                    className={`capitalize px-4 py-2 rounded-full border ${appState.activeTimer!.details?.side === side ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                   >
-                     {side === 'left' ? '左' : (side === 'right' ? '右' : '雙邊')}
-                   </button>
-                 ))}
-               </div>
-             )}
-
-             {appState.activeTimer.details?.feedingType === 'bottle' && (
-                <div className="flex flex-col items-center space-y-3">
-                    <div className="flex items-center justify-center space-x-2">
-                      <input 
-                        type="number" 
-                        placeholder="ml" 
-                        value={appState.activeTimer.details?.amountMl || ''}
-                        className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
-                        onChange={(e) => updateActiveDetails({ amountMl: parseInt(e.target.value) || 0 })}
-                      />
-                      <span className="text-slate-500 dark:text-slate-400 font-medium">ml</span>
-                    </div>
-                    {/* Quick Select Buttons */}
-                    <div className="flex flex-wrap justify-center gap-2">
-                        {[110, 140, 170, 200].map(amt => (
-                            <button 
-                                key={amt}
-                                onClick={() => updateActiveDetails({ amountMl: amt })}
-                                className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
-                            >
-                                {amt}ml
-                            </button>
-                        ))}
-                    </div>
-                </div>
-             )}
+              <div className="flex justify-center space-x-2 mb-2">
+                <span className="text-sm font-bold text-pink-600 dark:text-pink-400">餵奶份量</span>
+              </div>
+              <div className="flex flex-col items-center space-y-3">
+                  <div className="flex items-center justify-center space-x-2">
+                    <input 
+                      type="number" 
+                      placeholder="ml" 
+                      value={appState.activeTimer.details?.amountMl || ''}
+                      className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
+                      onChange={(e) => updateActiveDetails({ amountMl: parseInt(e.target.value) || 0, feedingType: 'bottle' })}
+                    />
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">ml</span>
+                  </div>
+                  {/* Quick Select Buttons */}
+                  <div className="flex flex-wrap justify-center gap-2">
+                      {[110, 140, 170, 200].map(amt => (
+                          <button 
+                              key={amt}
+                              onClick={() => updateActiveDetails({ amountMl: amt, feedingType: 'bottle' })}
+                              className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                          >
+                              {amt}ml
+                          </button>
+                      ))}
+                  </div>
+              </div>
           </div>
         )}
 
@@ -535,7 +507,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
               <MilkIcon className="w-8 h-8" />
             </div>
             <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">開始餵奶</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">親餵或瓶餵計時</p>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">記錄餵奶時間和份量</p>
           </div>
         </button>
 
@@ -609,7 +581,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  <button onClick={() => setShowManualModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium">取消</button>
               </div>
               
-              <div className="p-6 space-y-6 overflow-y-auto w-full">
+               <div className="p-6 space-y-6 overflow-y-auto w-full">
                  {/* Type Selector */}
                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                     <button 
@@ -730,41 +702,15 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  )}
 
                  {manualType === 'feeding' && (
-                    <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <div className="flex justify-center space-x-3">
-                           <button 
-                              onClick={() => setManualDetails(p => ({ ...p, feedingType: 'nursing' }))}
-                              className={`px-4 py-2 rounded-lg text-sm font-medium border ${manualDetails.feedingType === 'nursing' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                           >親餵</button>
-                           <button 
-                              onClick={() => setManualDetails(p => ({ ...p, feedingType: 'bottle' }))}
-                              className={`px-4 py-2 rounded-lg text-sm font-medium border ${manualDetails.feedingType === 'bottle' ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                           >瓶餵</button>
-                        </div>
-
-                        {manualDetails.feedingType === 'nursing' && (
-                           <div className="flex justify-center space-x-2">
-                              {(['left', 'right', 'both'] as const).map(side => (
-                                 <button
-                                    key={side}
-                                    onClick={() => setManualDetails(p => ({ ...p, side }))}
-                                    className={`capitalize px-3 py-1.5 rounded-full text-sm border ${manualDetails.side === side ? 'bg-pink-500 text-white border-pink-500' : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'}`}
-                                 >
-                                    {side === 'left' ? '左' : (side === 'right' ? '右' : '雙邊')}
-                                 </button>
-                              ))}
-                           </div>
-                        )}
-                        
-                        {manualDetails.feedingType === 'bottle' && (
-                           <div className="flex flex-col items-center space-y-3">
+                    <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                         <div className="flex flex-col items-center space-y-3">
                               <div className="flex justify-center items-center space-x-2">
                                 <input 
                                   type="number" 
                                   placeholder="份量" 
                                   value={manualDetails.amountMl || ''}
                                   className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
-                                  onChange={e => setManualDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
+                                  onChange={e => setManualDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0, feedingType: 'bottle' }))}
                                 />
                                 <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
                               </div>
@@ -773,7 +719,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                     {[110, 140, 170, 200].map(amt => (
                                         <button 
                                             key={amt}
-                                            onClick={() => setManualDetails(p => ({ ...p, amountMl: amt }))}
+                                            onClick={() => setManualDetails(p => ({ ...p, amountMl: amt, feedingType: 'bottle' }))}
                                             className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300"
                                         >
                                             {amt}ml
@@ -781,7 +727,6 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                     ))}
                                 </div>
                            </div>
-                        )}
                     </div>
                  )}
 
