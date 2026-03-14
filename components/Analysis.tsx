@@ -4,7 +4,6 @@ import { AppState } from '../types';
 import { SparklesIcon } from './Icons';
 import { getGeminiInsights } from '../services/geminiService';
 import { format, startOfDay, endOfDay, isWithinInterval, subDays, eachDayOfInterval } from 'date-fns';
-import { getAverageWakeWindow } from '../services/predictionService';
 import { formatDuration } from '../utils';
 
 interface AnalysisProps {
@@ -37,7 +36,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
   const goalTotalHours = (appState.sleepGoal.hours || 0) + (appState.sleepGoal.minutes || 0) / 60;
   const sleepProgress = goalTotalHours > 0 ? Math.min(100, (sleepTotalHours / goalTotalHours) * 100) : 0;
   
-  const avgWakeWindowMinutes = getAverageWakeWindow(appState.logs);
+  
 
   const handleGetInsight = async () => {
     setLoading(true);
@@ -49,7 +48,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
   // Daily Activity Chart (Today)
   const chartData = [
     { name: '餵奶', value: feedsTotal, color: '#ec4899' },
-    { name: '睡眠 (時)', value: Math.round(sleepTotalHours), color: '#6366f1' },
+    { name: '沖涼 (時)', value: Math.round(sleepTotalHours), color: '#6366f1' },
     { name: '換片', value: diaperTotal, color: '#10b981' },
     { name: '擠奶', value: pumpingTotal, color: '#06b6d4' },
   ];
@@ -87,7 +86,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
           <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-            {hrs}時 {mins}分 睡眠
+            {hrs}時 {mins}分 沖涼
           </p>
         </div>
       );
@@ -109,7 +108,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         </div>
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center flex flex-col items-center justify-center">
           <div className="text-2xl font-bold text-indigo-500">{sleepTotalHours.toFixed(1)}h</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">睡眠時數</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">沖涼時數</div>
           {/* Goal Indicator */}
           <div className="w-full mt-2 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
              <div className="h-full bg-indigo-500" style={{ width: `${sleepProgress}%` }}></div>
@@ -128,7 +127,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
       {/* Sleep Trend Chart */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">睡眠趨勢 (過去7天)</h3>
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">沖涼趨勢 (過去7天)</h3>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={sleepTrendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
@@ -172,7 +171,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         </div>
         
         <p className="text-sm text-violet-700 dark:text-violet-300 mb-4 leading-relaxed">
-          讓 AI 為您分析寶寶的作息、睡眠模式和餵食習慣，提供個人化建議。
+          讓 AI 為您分析寶寶的作息、洗澡習慣和餵食習慣，提供個人化建議。
         </p>
 
         {!insight && !loading && (

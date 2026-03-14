@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { format, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
 import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
 import { formatDuration, exportToCSV, ExportColumn, generateId } from '../utils';
-import { TrashIcon, MilkIcon, MoonIcon, BabyIcon, PencilIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon } from './Icons';
+import { TrashIcon, MilkIcon, MoonIcon, BabyIcon, PencilIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon, DropletIcon } from './Icons';
 import Timeline from './Timeline';
 
 interface HistoryProps {
@@ -30,7 +30,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   const [exportColumns, setExportColumns] = useState<ExportColumn[]>([
     { key: 'id', label: '紀錄 ID', enabled: false, value: (l) => l.id },
     { key: 'type', label: '活動類型', enabled: true, value: (l) => {
-        const types: Record<string, string> = { feeding: '餵奶', sleep: '睡眠', diaper: '換片', pumping: '擠奶', solids: '副食品' };
+        const types: Record<string, string> = { feeding: '餵奶', sleep: '沖涼', diaper: '換片', pumping: '擠奶', solids: '副食品' };
         return types[l.type] || l.type;
     }},
     { key: 'start', label: '開始時間', enabled: true, value: (l) => format(new Date(l.startTime), 'yyyy-MM-dd HH:mm:ss') },
@@ -296,7 +296,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                     >
                         {t === 'all' ? '全部' :
                          t === 'feeding' ? '餵奶' :
-                         t === 'sleep' ? '睡眠' :
+                         t === 'sleep' ? '沖涼' :
                          t === 'diaper' ? '換片' :
                          t === 'pumping' ? '擠奶' : '副食品'}
                     </button>
@@ -334,7 +334,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                             'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
                           }`}>
                              {log.type === 'feeding' && <MilkIcon className="w-5 h-5" />}
-                             {log.type === 'sleep' && <MoonIcon className="w-5 h-5" />}
+                             {log.type === 'sleep' && <DropletIcon className="w-5 h-5" />}
                              {log.type === 'pumping' && <PumpIcon className="w-5 h-5" />}
                              {log.type === 'solids' && <FoodIcon className="w-5 h-5" />}
                              {log.type === 'diaper' && <BabyIcon className="w-5 h-5" />}
@@ -342,7 +342,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize flex items-center gap-2 flex-wrap">
                               {log.type === 'feeding' ? '餵奶' : 
-                               log.type === 'sleep' ? '睡眠' : 
+                               log.type === 'sleep' ? '沖涼' : 
                                log.type === 'pumping' ? '擠奶' : 
                                log.type === 'solids' ? '副食品' : '換片'}
                               {log.durationSeconds && log.durationSeconds > 0 && (
@@ -470,23 +470,14 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                         className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${editType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
                       >{
                         t === 'feeding' ? '餵奶' : 
-                        (t === 'sleep' ? '睡眠' : 
+                        (t === 'sleep' ? '沖涼' : 
                         (t === 'pumping' ? '擠奶' : 
                         (t === 'solids' ? '副食品' : '換片')))
                       }</button>
                   ))}
                </div>
 
-               {/* Quick Action for All Day Sleep */}
-               {isCreating && editType === 'sleep' && (
-                   <button 
-                     onClick={handleAllDaySleep}
-                     className="w-full py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-bold rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors text-sm"
-                   >
-                     記錄此日為「整天睡覺」
-                   </button>
-               )}
-
+               {/* Quick Action for All Day Sleep removed */}
                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>

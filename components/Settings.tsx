@@ -154,7 +154,7 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
 
       {/* Sleep Goals */}
       <section className="space-y-4">
-        <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">每日睡眠目標</h3>
+        <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">每日沖涼目標</h3>
         <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
            <div className="flex flex-col items-center">
               <input 
@@ -214,7 +214,7 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
 
              <div className="space-y-2">
                <div className="flex justify-between text-sm font-medium text-slate-700 dark:text-slate-300">
-                  <span>睡眠提醒</span>
+                  <span>沖涼提醒</span>
                </div>
                <div className="flex items-center space-x-3">
                  <input 

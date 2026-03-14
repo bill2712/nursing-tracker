@@ -2,7 +2,7 @@ import React from 'react';
 import { format, differenceInMinutes, startOfDay } from 'date-fns';
 import { LogEntry } from '../types';
 import { formatDuration } from '../utils';
-import { MilkIcon, MoonIcon, BabyIcon, PumpIcon, FoodIcon } from './Icons';
+import { MilkIcon, MoonIcon, BabyIcon, PumpIcon, FoodIcon, DropletIcon } from './Icons';
 
 interface TimelineProps {
   logs: LogEntry[];
@@ -77,7 +77,7 @@ const Timeline: React.FC<TimelineProps> = ({ logs, dayString, onEdit }) => {
                    >
                         <div className="mt-0.5 opacity-70">
                             {log.type === 'feeding' && <MilkIcon className="w-3 h-3" />}
-                            {log.type === 'sleep' && <MoonIcon className="w-3 h-3" />}
+                            {log.type === 'sleep' && <DropletIcon className="w-3 h-3" />}
                             {log.type === 'diaper' && <BabyIcon className="w-3 h-3" />}
                             {log.type === 'pumping' && <PumpIcon className="w-3 h-3" />}
                             {log.type === 'solids' && <FoodIcon className="w-3 h-3" />}

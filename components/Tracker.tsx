@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MilkIcon, MoonIcon, ClockIcon, PencilIcon, PumpIcon, FoodIcon } from './Icons';
+import { MilkIcon, MoonIcon, ClockIcon, PencilIcon, PumpIcon, FoodIcon, DropletIcon } from './Icons';
 import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
 import { formatTimer, generateId, formatTimeAgo } from '../utils';
-import { getAverageWakeWindow, predictNextNap } from '../services/predictionService';
+import { getAverageWakeWindow } from '../services/predictionService';
 
 interface TrackerProps {
   appState: AppState;
@@ -309,7 +309,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/40'))}
           `}>
              {isFeeding ? <MilkIcon className="w-16 h-16 text-pink-500" /> : 
-              (isPumping ? <PumpIcon className="w-16 h-16 text-cyan-500" /> : <MoonIcon className="w-16 h-16 text-indigo-500" />)}
+              (isPumping ? <PumpIcon className="w-16 h-16 text-cyan-500" /> : <DropletIcon className="w-16 h-16 text-indigo-500" />)}
              
              {/* Visual Overlay for Paused/Snoozed */}
              {(isPaused || isSnoozed) && (
@@ -332,7 +332,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         
         <div className="text-center relative">
           <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-1">
-            {isSnoozed ? '貪睡中...' : (isPaused ? '計時暫停' : (isFeeding ? '餵奶時間' : '睡覺中'))}
+            {isSnoozed ? '貪睡中...' : (isPaused ? '計時暫停' : (isFeeding ? '餵奶時間' : '沖涼中'))}
           </h2>
           <div className={`flex items-center justify-center space-x-2 transition-all duration-300 ${isPaused || isSnoozed ? 'opacity-70' : 'opacity-100'}`}>
               <div className={`text-5xl font-mono font-medium tracking-wider transition-all duration-300 ${isPaused || isSnoozed ? 'text-slate-500 dark:text-slate-500' : 'text-slate-800 dark:text-white'} ${(isPaused || isSnoozed) ? 'animate-pulse' : ''}`}>
@@ -403,7 +403,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     </div>
                     {/* Quick Select Buttons */}
                     <div className="flex flex-wrap justify-center gap-2">
-                        {[60, 90, 120, 150].map(amt => (
+                        {[110, 140, 170, 200].map(amt => (
                             <button 
                                 key={amt}
                                 onClick={() => updateActiveDetails({ amountMl: amt })}
@@ -506,7 +506,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
            </span>
         </div>
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次睡覺</span>
+           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次沖涼</span>
            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
              {lastActivities.sleep ? formatTimeAgo(lastActivities.sleep.endTime || lastActivities.sleep.startTime) : '--'}
            </span>
@@ -520,27 +520,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       </div>
 
 
-      {/* Prediction Widget */}
-      {(() => {
-        const avgWakeWindow = getAverageWakeWindow(appState.logs);
-        const prediction = predictNextNap(appState.logs, avgWakeWindow);
-        if (prediction.time && avgWakeWindow > 0) {
-            const timeStr = new Date(prediction.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            return (
-                <div className="bg-gradient-to-r from-indigo-500 to-violet-600 rounded-xl p-4 shadow-lg shadow-indigo-200 dark:shadow-none text-white flex justify-between items-center">
-                    <div>
-                        <p className="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1">預計下次小睡</p>
-                        <p className="text-2xl font-bold">{timeStr}</p>
-                        <p className="text-[10px] text-indigo-200 mt-1 opacity-80">{prediction.reason}</p>
-                    </div>
-                    <div className="bg-white/20 p-3 rounded-full">
-                        <MoonIcon className="w-6 h-6 text-white" />
-                    </div>
-                </div>
-            );
-        }
-        return null;
-      })()}
+      {/* Prediction Widget (Removed since Sleep is changed to Bathe) */}
 
       <div className="grid grid-cols-1 gap-6">
         <button 
@@ -565,19 +545,19 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
               className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition-all text-left pb-16"
             >
               <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                <MoonIcon className="w-32 h-32 text-indigo-500" />
+                <DropletIcon className="w-32 h-32 text-indigo-500" />
               </div>
               <div className="relative z-10">
                 <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-4 text-indigo-600 dark:text-indigo-400">
-                  <MoonIcon className="w-8 h-8" />
+                  <DropletIcon className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">開始睡覺</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">記錄小睡或長睡眠</p>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">開始沖涼</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">記錄洗澡時間</p>
               </div>
             </button>
             {/* Quick Sleep Log Buttons Overlay */}
             <div className="absolute bottom-4 left-8 right-8 flex space-x-2 z-20">
-                {[30, 60, 120].map(mins => (
+                {[5, 10, 15].map(mins => (
                     <button
                         key={mins}
                         onClick={(e) => {
@@ -586,7 +566,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                         }}
                         className="flex-1 py-2 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors border border-indigo-100 dark:border-indigo-800"
                     >
-                        記錄 {mins < 60 ? `${mins}分` : `${mins/60}小時`}
+                        記錄 {mins}分
                     </button>
                 ))}
             </div>
@@ -639,7 +619,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     <button 
                       onClick={() => setManualType('sleep')}
                       className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'sleep' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >睡眠</button>
+                    >沖涼</button>
                     <button 
                       onClick={() => setManualType('pumping')}
                       className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'pumping' ? 'bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
@@ -650,16 +630,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     >副食品</button>
                  </div>
                  
-                 {/* Special "All Day Sleep" Shortcut */}
-                 {manualType === 'sleep' && (
-                    <button 
-                      onClick={setAllDaySleep}
-                      className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-2 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors w-full border border-indigo-100 dark:border-indigo-800 mb-2"
-                    >
-                      記錄此日為「整天睡覺」
-                    </button>
-                 )}
-
+                 {/* Special "All Day Sleep" Shortcut removed for bath */}
                  {/* Time Inputs */}
                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -685,13 +656,13 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  {/* Quick Durations for Sleep */}
                  {manualType === 'sleep' && (
                      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                         {[30, 60, 90, 120, 180, 240, 480].map(m => (
+                         {[5, 10, 15, 20, 30].map(m => (
                              <button 
                                 key={m} 
                                 onClick={() => addDurationToManual(m)}
                                 className="shrink-0 px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-800"
                              >
-                                 +{m < 60 ? m+'分' : (m/60)+'小時'}
+                                 +{m}分
                              </button>
                          ))}
                      </div>
@@ -799,7 +770,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                               </div>
                                {/* Quick Select Buttons */}
                                <div className="flex flex-wrap justify-center gap-2">
-                                    {[60, 90, 120, 150].map(amt => (
+                                    {[110, 140, 170, 200].map(amt => (
                                         <button 
                                             key={amt}
                                             onClick={() => setManualDetails(p => ({ ...p, amountMl: amt }))}
