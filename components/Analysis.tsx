@@ -61,34 +61,100 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
     end: today
   });
 
-  const sleepTrendData = last7Days.map(day => {
+  const trendData = last7Days.map(day => {
     const dayStart = startOfDay(day);
     const dayEnd = endOfDay(day);
     
-    // Find sleep logs that started on this day
-    const dailySleepSeconds = appState.logs
-      .filter(l => l.type === 'sleep' && isWithinInterval(l.startTime, { start: dayStart, end: dayEnd }))
+    const logsInDay = appState.logs.filter(l => isWithinInterval(l.startTime, { start: dayStart, end: dayEnd }));
+
+    // Sleep
+    const dailySleepSeconds = logsInDay
+      .filter(l => l.type === 'sleep')
       .reduce((acc, curr) => acc + (curr.durationSeconds || 0), 0);
+
+    // Feeding Volume
+    const dailyFeedingMl = logsInDay
+      .filter(l => l.type === 'feeding')
+      .reduce((acc, curr) => acc + (curr.details.amountMl || 0), 0);
+      
+    // Diaper Breakdown
+    const diapers = logsInDay.filter(l => l.type === 'diaper');
+    let wet = 0; let dirty = 0;
+    diapers.forEach(d => {
+      if (d.details.diaperState === 'wet') wet++;
+      if (d.details.diaperState === 'dirty') dirty++;
+      if (d.details.diaperState === 'mixed') { wet++; dirty++; }
+    });
+
+    // Colic Count
+    const colicCount = logsInDay.filter(l => l.type === 'colic').length;
 
     return {
       date: format(day, 'EEE'), // Mon, Tue...
       fullDate: format(day, 'MMM d'),
-      hours: parseFloat((dailySleepSeconds / 3600).toFixed(1)),
-      seconds: dailySleepSeconds
+      sleepHours: parseFloat((dailySleepSeconds / 3600).toFixed(1)),
+      sleepSeconds: dailySleepSeconds,
+      feedingMl: dailyFeedingMl,
+      wetDiapers: wet,
+      dirtyDiapers: dirty,
+      colicCount: colicCount
     };
   });
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const SleepTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
-      const hrs = Math.floor(data.seconds / 3600);
-      const mins = Math.floor((data.seconds % 3600) / 60);
-      
+      const hrs = Math.floor(data.sleepSeconds / 3600);
+      const mins = Math.floor((data.sleepSeconds % 3600) / 60);
       return (
         <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
           <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
             {hrs}時 {mins}分 沖涼
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const FeedingTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
+          <p className="text-sm font-bold text-pink-600 dark:text-pink-400">
+            總共: {data.feedingMl}ml
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const DiaperTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
+          <p className="text-sm font-bold text-sky-500">濕: {data.wetDiapers}次</p>
+          <p className="text-sm font-bold text-amber-600">髒: {data.dirtyDiapers}次</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const ColicTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
+          <p className="text-sm font-bold text-rose-500">
+            次數: {data.colicCount}次
           </p>
         </div>
       );
@@ -131,42 +197,95 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         </div>
       </div>
 
-      {/* Sleep Trend Chart */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">沖涼趨勢 (過去7天)</h3>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={sleepTrendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-            <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-            <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
-            <Line 
-              type="monotone" 
-              dataKey="hours" 
-              stroke="#6366f1" 
-              strokeWidth={3}
-              dot={{ fill: '#6366f1', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
-              activeDot={{ r: 6 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      {/* Basic Activity Chart */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-64">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">今日活動分佈</h3>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData}>
-            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-            <YAxis hide />
-            <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', backgroundColor: appState.darkMode ? '#1e293b' : '#fff', borderColor: appState.darkMode ? '#334155' : '#f1f5f9', color: appState.darkMode ? '#fff' : '#000' }} />
-            <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        {/* Feeding Trend Chart */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">餵奶奶量趨勢 (過去7天)</h3>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
+              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <Tooltip content={<FeedingTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
+              <Line 
+                type="monotone" 
+                dataKey="feedingMl" 
+                stroke="#ec4899" 
+                strokeWidth={3}
+                dot={{ fill: '#ec4899', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Diaper Trend Chart */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">換片次數趨勢 (過去7天)</h3>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
+              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <Tooltip content={<DiaperTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
+              <Line 
+                type="monotone" 
+                dataKey="wetDiapers" 
+                name="濕片"
+                stroke="#0ea5e9" 
+                strokeWidth={3}
+                dot={{ fill: '#0ea5e9', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
+                activeDot={{ r: 6 }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="dirtyDiapers" 
+                name="髒片"
+                stroke="#d97706" 
+                strokeWidth={3}
+                dot={{ fill: '#d97706', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Colic Trend Chart */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Colic 趨勢 (過去7天)</h3>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
+              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <Tooltip content={<ColicTooltip />} cursor={{fill: 'transparent'}} />
+              <Bar dataKey="colicCount" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Sleep Trend Chart */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">沖涼趨勢 (過去7天)</h3>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
+              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <Tooltip content={<SleepTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
+              <Line 
+                type="monotone" 
+                dataKey="sleepHours" 
+                stroke="#6366f1" 
+                strokeWidth={3}
+                dot={{ fill: '#6366f1', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
       </div>
 
       {/* Gemini AI Section */}

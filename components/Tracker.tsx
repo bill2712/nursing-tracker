@@ -83,6 +83,27 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     return appState.logs.filter(l => l.type === 'colic' && l.startTime >= dayStart).length;
   }, [appState.logs]);
 
+  const dailyFeedingVolume = useMemo(() => {
+    const now = Date.now();
+    const dayStart = startOfDay(now).getTime();
+    return appState.logs
+      .filter(l => l.type === 'feeding' && l.startTime >= dayStart)
+      .reduce((acc, curr) => acc + (curr.details.amountMl || 0), 0);
+  }, [appState.logs]);
+
+  const dailyDiaperCounts = useMemo(() => {
+    const now = Date.now();
+    const dayStart = startOfDay(now).getTime();
+    const diapers = appState.logs.filter(l => l.type === 'diaper' && l.startTime >= dayStart);
+    let wet = 0; let dirty = 0;
+    diapers.forEach(d => {
+      if (d.details.diaperState === 'wet') wet++;
+      if (d.details.diaperState === 'dirty') dirty++;
+      if (d.details.diaperState === 'mixed') { wet++; dirty++; }
+    });
+    return { wet, dirty, total: diapers.length };
+  }, [appState.logs]);
+
   // --- Firestore Actions ---
 
   const startTimer = async (type: ActivityType) => {
@@ -493,6 +514,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
            {lastActivities.feeding?.details?.amountMl && (
              <span className="text-xs font-semibold text-pink-500/70 mt-0.5">{lastActivities.feeding.details.amountMl}ml</span>
            )}
+           <span className="text-[10px] font-semibold text-pink-400/80 mt-1">今日 {dailyFeedingVolume}ml</span>
         </div>
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次沖涼</span>
@@ -511,6 +533,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                {lastActivities.diaper.details.diaperState === 'wet' ? '濕' : lastActivities.diaper.details.diaperState === 'dirty' ? '髒' : '混合'}
              </span>
            )}
+           <span className="text-[10px] font-semibold text-emerald-400/80 mt-1">今日: {dailyDiaperCounts.wet}濕 {dailyDiaperCounts.dirty}髒</span>
         </div>
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次 Colic</span>
@@ -527,41 +550,41 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
 
       {/* Prediction Widget (Removed since Sleep is changed to Bathe) */}
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-2 gap-4">
         <button 
           onClick={() => startTimer('feeding')}
-          className="group relative overflow-hidden bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-pink-200 dark:hover:border-pink-900 transition-all text-left"
+          className="group relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-pink-200 dark:hover:border-pink-900 transition-all text-left flex flex-col justify-center h-40"
         >
-          <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-            <MilkIcon className="w-32 h-32 text-pink-500" />
+          <div className="absolute right-[-10px] top-[-10px] p-2 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+            <MilkIcon className="w-24 h-24 text-pink-500" />
           </div>
           <div className="relative z-10">
-            <div className="w-14 h-14 bg-pink-100 dark:bg-pink-900/30 rounded-2xl flex items-center justify-center mb-4 text-pink-600 dark:text-pink-400">
-              <MilkIcon className="w-8 h-8" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-100 dark:bg-pink-900/30 rounded-xl flex items-center justify-center mb-3 text-pink-600 dark:text-pink-400">
+              <MilkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">開始餵奶</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">記錄餵奶時間和份量</p>
+            <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">開始餵奶</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs">記錄時間和份量</p>
           </div>
         </button>
 
         <div className="relative group">
             <button 
               onClick={() => startTimer('sleep')}
-              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition-all text-left pb-16"
+              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition-all text-left pb-12 sm:pb-14 h-40"
             >
-              <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                <DropletIcon className="w-32 h-32 text-indigo-500" />
+              <div className="absolute right-[-10px] top-[-10px] p-2 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                <DropletIcon className="w-24 h-24 text-indigo-500" />
               </div>
               <div className="relative z-10">
-                <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-4 text-indigo-600 dark:text-indigo-400">
-                  <DropletIcon className="w-8 h-8" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center mb-3 text-indigo-600 dark:text-indigo-400">
+                  <DropletIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">開始沖涼</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">記錄洗澡時間</p>
+                <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">開始沖涼</h3>
+                <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs">記錄洗澡時間</p>
               </div>
             </button>
-            {/* Quick Sleep Log Buttons Overlay */}
-            <div className="absolute bottom-4 left-8 right-8 flex space-x-2 z-20">
+            {/* Quick Bathe Log Buttons Overlay */}
+            <div className="absolute bottom-3 left-3 right-3 flex space-x-1 sm:space-x-2 z-20">
                 {[5, 10, 15].map(mins => (
                     <button
                         key={mins}
@@ -569,9 +592,9 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                             e.stopPropagation();
                             quickLogSleep(mins);
                         }}
-                        className="flex-1 py-2 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors border border-indigo-100 dark:border-indigo-800"
+                        className="flex-1 py-1.5 text-[9px] sm:text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors border border-indigo-100 dark:border-indigo-800"
                     >
-                        記錄 {mins}分
+                        {mins}分
                     </button>
                 ))}
             </div>
