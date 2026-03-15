@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid, AreaChart, Area } from 'recharts';
 import { AppState } from '../types';
 import { SparklesIcon } from './Icons';
 import { getGeminiInsights } from '../services/geminiService';
@@ -14,30 +14,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Simple daily stats calculation
   const today = new Date();
-  const todaysLogs = appState.logs.filter(log => 
-    isWithinInterval(log.startTime, { start: startOfDay(today), end: endOfDay(today) })
-  );
-
-  const sleepTotal = todaysLogs
-    .filter(l => l.type === 'sleep')
-    .reduce((acc, curr) => acc + (curr.durationSeconds || 0), 0);
-
-  const feedsTotal = todaysLogs.filter(l => l.type === 'feeding').length;
-  const diaperTotal = todaysLogs.filter(l => l.type === 'diaper').length;
-  const colicTotal = todaysLogs.filter(l => l.type === 'colic').length;
-  const pumpingTotal = todaysLogs.filter(l => l.type === 'pumping').length;
-  const pumpingVolume = todaysLogs
-    .filter(l => l.type === 'pumping')
-    .reduce((acc, curr) => acc + (curr.details.amountMl || 0), 0);
-
-  // Calculate Goal Progress
-  const sleepTotalHours = sleepTotal / 3600;
-  const goalTotalHours = (appState.sleepGoal.hours || 0) + (appState.sleepGoal.minutes || 0) / 60;
-  const sleepProgress = goalTotalHours > 0 ? Math.min(100, (sleepTotalHours / goalTotalHours) * 100) : 0;
-  
-  
 
   const handleGetInsight = async () => {
     setLoading(true);
@@ -46,22 +23,13 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
     setLoading(false);
   };
 
-  // Daily Activity Chart (Today)
-  const chartData = [
-    { name: '餵奶', value: feedsTotal, color: '#ec4899' },
-    { name: '沖涼 (時)', value: Math.round(sleepTotalHours), color: '#6366f1' },
-    { name: '換片', value: diaperTotal, color: '#10b981' },
-    { name: 'Colic', value: colicTotal, color: '#f43f5e' },
-    { name: '擠奶', value: pumpingTotal, color: '#06b6d4' },
-  ];
-
-  // Sleep Trend Chart (Last 7 Days)
-  const last7Days = eachDayOfInterval({
-    start: subDays(today, 6),
+  // Trend Chart (Last 10 Days)
+  const last10Days = eachDayOfInterval({
+    start: subDays(today, 9),
     end: today
   });
 
-  const trendData = last7Days.map(day => {
+  const trendData = last10Days.map(day => {
     const dayStart = startOfDay(day);
     const dayEnd = endOfDay(day);
     
@@ -164,65 +132,44 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
   return (
     <div className="p-6 space-y-6 pb-24">
-      <header>
+      <header className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">數據分析</h1>
       </header>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
-          <div className="text-2xl font-bold text-pink-500">{feedsTotal}</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">餵奶次數</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center flex flex-col items-center justify-center">
-          <div className="text-2xl font-bold text-indigo-500">{sleepTotalHours.toFixed(1)}h</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">沖涼時數</div>
-          {/* Goal Indicator */}
-          <div className="w-full mt-2 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-             <div className="h-full bg-indigo-500" style={{ width: `${sleepProgress}%` }}></div>
-          </div>
-          <div className="text-[9px] text-slate-400 mt-1">目標: {goalTotalHours.toFixed(1)}h</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
-          <div className="text-2xl font-bold text-emerald-500">{diaperTotal}</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">換片次數</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
-          <div className="text-2xl font-bold text-rose-500">{colicTotal}</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Colic次數</div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 text-center">
-          <div className="text-2xl font-bold text-cyan-500">{pumpingVolume}ml</div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">擠奶量</div>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Feeding Trend Chart */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">餵奶奶量趨勢 (過去7天)</h3>
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">餵奶奶量趨勢 (過去10天)</h3>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+            <AreaChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+              <defs>
+                <linearGradient id="colorFeed" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
               <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <Tooltip content={<FeedingTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
-              <Line 
+              <Area 
                 type="monotone" 
                 dataKey="feedingMl" 
                 stroke="#ec4899" 
+                fillOpacity={1}
+                fill="url(#colorFeed)"
                 strokeWidth={3}
                 dot={{ fill: '#ec4899', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
                 activeDot={{ r: 6 }}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Diaper Trend Chart */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">換片次數趨勢 (過去7天)</h3>
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">換片次數趨勢 (過去10天)</h3>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
@@ -253,7 +200,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
         {/* Colic Trend Chart */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Colic 趨勢 (過去7天)</h3>
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Colic 趨勢 (過去10天)</h3>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
@@ -267,7 +214,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
         {/* Sleep Trend Chart */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">沖涼趨勢 (過去7天)</h3>
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">沖涼趨勢 (過去10天)</h3>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
