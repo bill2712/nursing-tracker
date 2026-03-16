@@ -1,4 +1,4 @@
-import { format, differenceInMinutes } from 'date-fns';
+import { format, differenceInMinutes, differenceInCalendarDays } from 'date-fns';
 import { LogEntry } from './types';
 
 export const generateId = (): string => {
@@ -24,18 +24,20 @@ export const formatTimer = (totalSeconds: number): string => {
 };
 
 export const formatTimeAgo = (timestamp: number): string => {
-  const mins = Math.max(0, differenceInMinutes(Date.now(), timestamp));
+  const now = Date.now();
+  const calendarDaysDiff = differenceInCalendarDays(now, timestamp);
+
+  if (calendarDaysDiff > 0) {
+    return `${calendarDaysDiff}天前`;
+  }
+
+  const mins = Math.max(0, differenceInMinutes(now, timestamp));
   if (mins < 1) return '剛剛';
   if (mins < 60) return `${mins}分鐘前`;
   const hours = Math.floor(mins / 60);
   const remainingMins = mins % 60;
   
-  if (hours < 24) {
-    return `${hours}小時 ${remainingMins}分鐘前`;
-  }
-  
-  const days = Math.floor(hours / 24);
-  return `${days}天前`;
+  return `${hours}小時 ${remainingMins}分鐘前`;
 };
 
 export interface ExportColumn {

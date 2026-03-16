@@ -150,7 +150,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <Tooltip content={<FeedingTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Area 
@@ -173,7 +173,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <Tooltip content={<DiaperTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Line 
@@ -204,7 +204,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <Tooltip content={<ColicTooltip />} cursor={{fill: 'transparent'}} />
               <Bar dataKey="colicCount" fill="#f43f5e" radius={[4, 4, 0, 0]} />
@@ -218,7 +218,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
               <Tooltip content={<SleepTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
               <Line 
