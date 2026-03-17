@@ -40,6 +40,19 @@ export const formatTimeAgo = (timestamp: number): string => {
   return `${hours}小時 ${remainingMins}分鐘前`;
 };
 
+export const formatTimeAgoAbsolute = (timestamp: number): string => {
+  const now = Date.now();
+  const mins = Math.max(0, differenceInMinutes(now, timestamp));
+  
+  if (mins < 1) return '剛剛';
+  if (mins < 60) return `${mins}分鐘前`;
+  
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  
+  return `${hours}小時 ${remainingMins}分鐘前`;
+};
+
 export interface ExportColumn {
   key: string;
   label: string;

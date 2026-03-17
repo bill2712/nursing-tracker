@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { startOfWeek, startOfDay } from 'date-fns';
 import { MilkIcon, MoonIcon, ClockIcon, PencilIcon, PumpIcon, FoodIcon, DropletIcon } from './Icons';
 import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
-import { formatTimer, generateId, formatTimeAgo } from '../utils';
+import { formatTimer, generateId, formatTimeAgo, formatTimeAgoAbsolute } from '../utils';
 import { getAverageWakeWindow } from '../services/predictionService';
 
 interface TrackerProps {
@@ -518,7 +518,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次餵奶</span>
            <span className="text-sm font-bold text-pink-600 dark:text-pink-400">
-             {lastActivities.feeding ? formatTimeAgo(lastActivities.feeding.endTime || lastActivities.feeding.startTime) : '--'}
+             {lastActivities.feeding ? formatTimeAgoAbsolute(lastActivities.feeding.endTime || lastActivities.feeding.startTime) : '--'}
            </span>
            {lastActivities.feeding?.details?.amountMl && (
              <span className="text-xs font-semibold text-pink-500/70 mt-0.5">{lastActivities.feeding.details.amountMl}ml</span>
@@ -535,7 +535,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次換片</span>
            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-             {lastActivities.diaper ? formatTimeAgo(lastActivities.diaper.startTime) : '--'}
+             {lastActivities.diaper ? formatTimeAgoAbsolute(lastActivities.diaper.startTime) : '--'}
            </span>
            {lastActivities.diaper?.details?.diaperState && (
              <span className="text-xs font-semibold text-emerald-500/70 mt-0.5">
