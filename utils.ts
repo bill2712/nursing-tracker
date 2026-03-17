@@ -63,7 +63,7 @@ export const exportToCSV = (logs: LogEntry[], columns?: ExportColumn[]) => {
   const defCols: ExportColumn[] = [
     { key: 'id', label: 'ID', enabled: true, value: (l) => l.id },
     { key: 'type', label: '類型', enabled: true, value: (l) => {
-        const map: Record<string, string> = { feeding: '餵奶', sleep: '睡眠', diaper: '換片', pumping: '擠奶', solids: '副食品' };
+        const map: Record<string, string> = { feeding: '餵奶', sleep: '睡眠', diaper: '換片', pumping: '擠奶', solids: '副食品', colic: 'Colic', clear_snot: '清鼻涕', clean_mouth: '清潔口腔' };
         return map[l.type] || l.type;
     }},
     { key: 'start', label: '開始時間', enabled: true, value: (l) => format(new Date(l.startTime), 'yyyy-MM-dd HH:mm:ss') },

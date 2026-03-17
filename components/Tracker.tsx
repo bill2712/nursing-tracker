@@ -104,6 +104,18 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     return { wet, dirty, total: diapers.length };
   }, [appState.logs]);
 
+  const dailySnotCount = useMemo(() => {
+    const now = Date.now();
+    const dayStart = startOfDay(now).getTime();
+    return appState.logs.filter(l => l.type === 'clear_snot' && l.startTime >= dayStart).length;
+  }, [appState.logs]);
+
+  const dailyMouthCount = useMemo(() => {
+    const now = Date.now();
+    const dayStart = startOfDay(now).getTime();
+    return appState.logs.filter(l => l.type === 'clean_mouth' && l.startTime >= dayStart).length;
+  }, [appState.logs]);
+
   // --- Firestore Actions ---
 
   const startTimer = async (type: ActivityType) => {
@@ -603,6 +615,43 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       
       {/* Quick Actions (Bottom) */}
       <div className="mt-auto space-y-4">
+         {/* 每日任務 Daily Tasks */}
+         <div>
+            <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mb-3 uppercase tracking-wider">每日任務</p>
+            <div className="grid grid-cols-2 gap-3">
+               <button
+                   onClick={async () => {
+                       const newLog: LogEntry = {
+                           id: generateId(),
+                           type: 'clear_snot',
+                           startTime: Date.now(),
+                           details: {}
+                       };
+                       await setDoc(doc(db, 'logs', newLog.id), newLog);
+                   }}
+                   className={`border py-3 rounded-xl text-sm font-medium transition-colors flex flex-col items-center ${dailySnotCount >= 2 ? 'bg-sky-500 text-white border-sky-500 shadow-sm' : 'bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/30 border-sky-100 dark:border-sky-800 text-sky-700 dark:text-sky-400'}`}
+               >
+                   <span className="font-bold border-b border-sky-200/50 dark:border-sky-800 pb-1 mb-1 w-20 text-center">清鼻涕</span>
+                   <span className="text-xs font-semibold">{dailySnotCount} / 2</span>
+               </button>
+               <button
+                   onClick={async () => {
+                       const newLog: LogEntry = {
+                           id: generateId(),
+                           type: 'clean_mouth',
+                           startTime: Date.now(),
+                           details: {}
+                       };
+                       await setDoc(doc(db, 'logs', newLog.id), newLog);
+                   }}
+                   className={`border py-3 rounded-xl text-sm font-medium transition-colors flex flex-col items-center ${dailyMouthCount >= 1 ? 'bg-teal-500 text-white border-teal-500 shadow-sm' : 'bg-teal-50 dark:bg-teal-900/20 hover:bg-teal-100 dark:hover:bg-teal-900/30 border-teal-100 dark:border-teal-800 text-teal-700 dark:text-teal-400'}`}
+               >
+                   <span className="font-bold border-b border-teal-200/50 dark:border-teal-800 pb-1 mb-1 w-20 text-center">清潔口腔</span>
+                   <span className="text-xs font-semibold">{dailyMouthCount} / 1</span>
+               </button>
+            </div>
+         </div>
+
          {/* Quick Add Diaper */}
          <div>
             <p className="text-sm font-semibold text-slate-400 dark:text-slate-500 mb-3 uppercase tracking-wider">快速換片</p>
@@ -668,27 +717,22 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
               
                <div className="p-6 space-y-6 overflow-y-auto w-full">
                  {/* Type Selector */}
-                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                    <button 
-                      onClick={() => setManualType('feeding')}
-                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'feeding' ? 'bg-white dark:bg-slate-700 text-pink-600 dark:text-pink-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >餵奶</button>
-                    <button 
-                      onClick={() => setManualType('sleep')}
-                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'sleep' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >沖涼</button>
-                    <button 
-                      onClick={() => setManualType('pumping')}
-                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'pumping' ? 'bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >擠奶</button>
-                    <button 
-                      onClick={() => setManualType('solids')}
-                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'solids' ? 'bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >副食品</button>
-                    <button 
-                      onClick={() => setManualType('colic')}
-                      className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${manualType === 'colic' ? 'bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
-                    >Colic</button>
+                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-wrap">
+                    {['feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic', 'clear_snot', 'clean_mouth'].map((t) => (
+                      <button 
+                        key={t}
+                        onClick={() => setManualType(t as ActivityType)}
+                        className={`py-2 px-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${manualType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                      >{
+                        t === 'feeding' ? '餵奶' : 
+                        (t === 'sleep' ? '沖涼' : 
+                        (t === 'pumping' ? '擠奶' : 
+                        (t === 'solids' ? '副食品' : 
+                        (t === 'colic' ? 'Colic' : 
+                        (t === 'clear_snot' ? '清鼻涕' : 
+                        (t === 'clean_mouth' ? '清潔口腔' : '換片'))))))
+                      }</button>
+                    ))}
                  </div>
                  
                  {/* Special "All Day Sleep" Shortcut removed for bath */}

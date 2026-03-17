@@ -30,7 +30,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   const [exportColumns, setExportColumns] = useState<ExportColumn[]>([
     { key: 'id', label: '紀錄 ID', enabled: false, value: (l) => l.id },
     { key: 'type', label: '活動類型', enabled: true, value: (l) => {
-        const types: Record<string, string> = { feeding: '餵奶', sleep: '沖涼', diaper: '換片', pumping: '擠奶', solids: '副食品', colic: 'Colic' };
+        const types: Record<string, string> = { feeding: '餵奶', sleep: '沖涼', diaper: '換片', pumping: '擠奶', solids: '副食品', colic: 'Colic', clear_snot: '清鼻涕', clean_mouth: '清潔口腔' };
         return types[l.type] || l.type;
     }},
     { key: 'start', label: '開始時間', enabled: true, value: (l) => format(new Date(l.startTime), 'yyyy-MM-dd HH:mm:ss') },
@@ -281,7 +281,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase mb-2">活動類型</p>
              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                {(['all', 'feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic'] as const).map(t => (
+                {(['all', 'feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic', 'clear_snot', 'clean_mouth'] as const).map(t => (
                     <button
                         key={t}
                         onClick={() => setFilterType(t)}
@@ -297,7 +297,9 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                          t === 'diaper' ? '換片' :
                          t === 'pumping' ? '擠奶' : 
                          t === 'solids' ? '副食品' :
-                         t === 'colic' ? 'Colic' : '未知類型'}
+                         t === 'colic' ? 'Colic' :
+                         t === 'clear_snot' ? '清鼻涕' :
+                         t === 'clean_mouth' ? '清潔口腔' : '未知類型'}
                     </button>
                 ))}
              </div>
@@ -331,6 +333,8 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                             log.type === 'pumping' ? 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400' :
                             log.type === 'solids' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' :
                             log.type === 'colic' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' :
+                            log.type === 'clear_snot' ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400' :
+                            log.type === 'clean_mouth' ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400' :
                             'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
                           }`}>
                              {log.type === 'feeding' && <MilkIcon className="w-5 h-5" />}
@@ -338,6 +342,8 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                              {log.type === 'pumping' && <PumpIcon className="w-5 h-5" />}
                              {log.type === 'solids' && <FoodIcon className="w-5 h-5" />}
                              {log.type === 'colic' && <ColicIcon className="w-5 h-5" />}
+                             {log.type === 'clear_snot' && <DropletIcon className="w-5 h-5" />}
+                             {log.type === 'clean_mouth' && <BabyIcon className="w-5 h-5" />}
                              {log.type === 'diaper' && <BabyIcon className="w-5 h-5" />}
                           </div>
                           <div className="min-w-0">
@@ -347,7 +353,9 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                                log.type === 'diaper' ? '換片' : 
                                log.type === 'pumping' ? '擠奶' : 
                                log.type === 'solids' ? '副食品' : 
-                               log.type === 'colic' ? 'Colic' : '未知類型'}
+                               log.type === 'colic' ? 'Colic' : 
+                               log.type === 'clear_snot' ? '清鼻涕' : 
+                               log.type === 'clean_mouth' ? '清潔口腔' : '未知類型'}
                               {log.durationSeconds && log.durationSeconds > 0 && (
                                 <span className={`text-xs px-2 py-0.5 rounded font-bold ${log.type === 'sleep' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                                     {formatDuration(log.durationSeconds)}
@@ -463,20 +471,22 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
             </div>
             
             <div className="p-6 space-y-6 overflow-y-auto w-full">
-               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                  {['feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic'].map((t) => (
+               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-wrap">
+                  {['feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic', 'clear_snot', 'clean_mouth'].map((t) => (
                       <button 
                         key={t}
                         onClick={() => {
                             setEditType(t as ActivityType);
                         }}
-                        className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${editType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
+                        className={`py-2 px-2 text-[10px] font-bold uppercase rounded-lg transition-all ${editType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
                       >{
                         t === 'feeding' ? '餵奶' : 
                         (t === 'sleep' ? '沖涼' : 
                         (t === 'pumping' ? '擠奶' : 
                         (t === 'solids' ? '副食品' : 
-                        (t === 'colic' ? 'Colic' : '換片'))))
+                        (t === 'colic' ? 'Colic' : 
+                        (t === 'clear_snot' ? '清鼻涕' : 
+                        (t === 'clean_mouth' ? '清潔口腔' : '換片'))))))
                       }</button>
                   ))}
                </div>

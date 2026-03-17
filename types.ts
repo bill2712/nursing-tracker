@@ -1,4 +1,4 @@
-export type ActivityType = 'feeding' | 'sleep' | 'diaper' | 'pumping' | 'solids' | 'colic';
+export type ActivityType = 'feeding' | 'sleep' | 'diaper' | 'pumping' | 'solids' | 'colic' | 'clear_snot' | 'clean_mouth';
 
 export type FeedingType = 'nursing' | 'bottle';
 export type FeedingSide = 'left' | 'right' | 'both';

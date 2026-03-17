@@ -68,6 +68,8 @@ const Timeline: React.FC<TimelineProps> = ({ logs, dayString, onEdit }) => {
                else if (log.type === 'pumping') { bgColor = 'bg-cyan-200 dark:bg-cyan-900/60'; textColor = 'text-cyan-800 dark:text-cyan-200'; }
                else if (log.type === 'colic') { bgColor = 'bg-rose-200 dark:bg-rose-900/60'; textColor = 'text-rose-800 dark:text-rose-200'; }
                else if (log.type === 'solids') { bgColor = 'bg-orange-200 dark:bg-orange-900/60'; textColor = 'text-orange-800 dark:text-orange-200'; }
+               else if (log.type === 'clear_snot') { bgColor = 'bg-sky-200 dark:bg-sky-900/60'; textColor = 'text-sky-800 dark:text-sky-200'; }
+               else if (log.type === 'clean_mouth') { bgColor = 'bg-teal-200 dark:bg-teal-900/60'; textColor = 'text-teal-800 dark:text-teal-200'; }
 
                return (
                    <div 
@@ -83,6 +85,8 @@ const Timeline: React.FC<TimelineProps> = ({ logs, dayString, onEdit }) => {
                             {log.type === 'pumping' && <PumpIcon className="w-3 h-3" />}
                             {log.type === 'colic' && <ColicIcon className="w-3 h-3" />}
                             {log.type === 'solids' && <FoodIcon className="w-3 h-3" />}
+                            {log.type === 'clear_snot' && <DropletIcon className="w-3 h-3" />}
+                            {log.type === 'clean_mouth' && <BabyIcon className="w-3 h-3" />}
                         </div>
                         <div className="text-[10px] font-bold leading-tight truncate">
                             {format(new Date(log.startTime), 'HH:mm')}
