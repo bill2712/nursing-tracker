@@ -559,20 +559,22 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
 
         {/* Timer Controls */}
         <div className="w-full max-w-xs space-y-3">
-            <div className="flex space-x-3">
-                <button
-                    onClick={togglePause}
-                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${isPaused && !isSnoozed ? 'bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                >
-                    {isPaused && !isSnoozed ? '繼續' : '暫停'}
-                </button>
-                <button
-                    onClick={handleSnooze}
-                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${isSnoozed ? 'bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
-                >
-                    {isSnoozed ? '繼續' : '貪睡 5分'}
-                </button>
-            </div>
+            {!isFeeding && (
+                <div className="flex space-x-3">
+                    <button
+                        onClick={togglePause}
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${isPaused && !isSnoozed ? 'bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                    >
+                        {isPaused && !isSnoozed ? '繼續' : '暫停'}
+                    </button>
+                    <button
+                        onClick={handleSnooze}
+                        className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors ${isSnoozed ? 'bg-emerald-500 text-white shadow-emerald-200 dark:shadow-none shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
+                    >
+                        {isSnoozed ? '繼續' : '貪睡 5分'}
+                    </button>
+                </div>
+            )}
 
             <div className="flex space-x-4 w-full">
                 <button 
@@ -696,26 +698,30 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       {/* Prediction Widget (Removed since Sleep is changed to Bathe) */}
 
       <div className="grid grid-cols-2 gap-3">
-        <button 
-          onClick={() => startTimer('feeding')}
-          className="group relative overflow-hidden bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-pink-200 dark:hover:border-pink-900 transition-all text-left flex flex-col justify-center h-28"
-        >
-          <div className="absolute right-[-5px] top-[-5px] p-2 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-            <MilkIcon className="w-16 h-16 text-pink-500" />
-          </div>
-          <div className="relative z-10">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center mb-2 text-pink-600 dark:text-pink-400">
-              <MilkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <h3 className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 mb-0.5">開始餵奶</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px]">記錄時間和份量</p>
-          </div>
-        </button>
+        <div className="relative group h-full">
+            <button 
+              onClick={() => startTimer('feeding')}
+              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl shadow-md border border-slate-100 dark:border-slate-800 hover:shadow-lg hover:border-pink-200 dark:hover:border-pink-900 transition-all text-left flex flex-col justify-start active:scale-[0.98] h-full pb-4 sm:pb-6"
+            >
+              <div className="absolute -right-4 -bottom-4 pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
+                <MilkIcon className="w-40 h-40 text-pink-500" />
+              </div>
+              <div className="relative z-10 flex items-center space-x-3 mb-2">
+                <div className="w-10 h-10 bg-pink-100 dark:bg-pink-900/30 rounded-xl flex items-center justify-center text-pink-600 dark:text-pink-400 shadow-sm">
+                  <MilkIcon className="w-5 h-5" />
+                </div>
+                <div>
+                   <h3 className="text-base sm:text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">開始餵奶</h3>
+                   <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium">記錄時間和份量</p>
+                </div>
+              </div>
+            </button>
+        </div>
 
-        <div className="relative group">
+        <div className="relative group h-full">
             <button 
               onClick={() => startTimer('sleep')}
-              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl shadow-md border border-slate-100 dark:border-slate-800 hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-900 transition-all text-left flex flex-col justify-between h-36 active:scale-[0.98]"
+              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl shadow-md border border-slate-100 dark:border-slate-800 hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-900 transition-all text-left flex flex-col justify-start active:scale-[0.98] h-full pb-14 sm:pb-16"
             >
               <div className="absolute -right-4 -bottom-4 pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
                 <DropletIcon className="w-40 h-40 text-indigo-500" />
