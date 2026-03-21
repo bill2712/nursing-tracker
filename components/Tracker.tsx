@@ -38,15 +38,16 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       }
 
       const now = Date.now();
-      const { startTime, pauseStartTime, ignoredDurationMs } = appState.activeTimer;
+      const { startTime, pauseStartTime, ignoredDurationMs, addedDurationMs } = appState.activeTimer;
       const totalIgnored = ignoredDurationMs || 0;
+      const totalAdded = addedDurationMs || 0;
 
       if (pauseStartTime) {
         // If paused, elapsed time is fixed at the moment pause started
-        setElapsed(Math.floor((pauseStartTime - startTime - totalIgnored) / 1000));
+        setElapsed(Math.floor((pauseStartTime - startTime - totalIgnored + totalAdded) / 1000));
       } else {
         // Running normally
-        setElapsed(Math.floor((now - startTime - totalIgnored) / 1000));
+        setElapsed(Math.floor((now - startTime - totalIgnored + totalAdded) / 1000));
       }
     };
 
