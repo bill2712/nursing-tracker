@@ -337,10 +337,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       setManualEndTime(localIso);
   };
 
-  // --- Active Timer View ---
   if (appState.activeTimer) {
     const isFeeding = appState.activeTimer.type === 'feeding';
     const isPumping = appState.activeTimer.type === 'pumping';
+    const isSleep = appState.activeTimer.type === 'sleep';
     const isPaused = !!appState.activeTimer.pauseStartTime;
     const isSnoozed = !!appState.activeTimer.snoozeEndTime;
     
@@ -492,6 +492,59 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                               className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
                           >
                               {amt}ml
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          </div>
+        )}
+
+        {/* Simplified Sleep Controls */}
+        {isSleep && (
+          <div className="w-full max-w-sm space-y-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col items-center space-y-3 pb-2">
+                  <div className="flex justify-center space-x-2 mb-1">
+                    <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">增加沖涼時間</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-2">
+                    <input 
+                      type="number" 
+                      placeholder="+10" 
+                      id="active-sleep-duration-input"
+                      className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = parseInt(e.currentTarget.value);
+                          if (!isNaN(val) && val > 0) {
+                            handleAddTime(val);
+                            e.currentTarget.value = '';
+                          }
+                        }
+                      }}
+                    />
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">分鐘</span>
+                    <button 
+                      onClick={() => {
+                        const input = document.getElementById('active-sleep-duration-input') as HTMLInputElement;
+                        const val = parseInt(input.value);
+                        if (!isNaN(val) && val > 0) {
+                          handleAddTime(val);
+                          input.value = '';
+                        }
+                      }}
+                      className="ml-1 px-3 py-2 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-bold transition-colors"
+                    >
+                      加入
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2 mt-1">
+                      {[5, 10, 15, 20].map(mins => (
+                          <button 
+                              key={mins}
+                              onClick={() => handleAddTime(mins)}
+                              className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                          >
+                              +{mins} 分鐘
                           </button>
                       ))}
                   </div>
