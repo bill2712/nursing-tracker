@@ -97,12 +97,13 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
           id: generateId(),
           type: 'feeding',
           startTime: now,
+          endTime: now,
           details: {}
       };
       setEditingLog(newLog);
       setIsCreating(true);
       setEditStartTime(toLocalISO(now));
-      setEditEndTime('');
+      setEditEndTime(toLocalISO(now));
       setEditType('feeding');
       setEditDetails({});
   };
@@ -472,46 +473,203 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
             
             <div className="p-6 space-y-6 overflow-y-auto w-full">
                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-wrap">
-                  {['feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic', 'clear_snot', 'clean_mouth'].map((t) => (
+                  {['feeding', 'sleep', 'diaper', 'solids'].map((t) => (
                       <button 
                         key={t}
                         onClick={() => {
                             setEditType(t as ActivityType);
+                            // Set default details based on type
+                            if (t === 'diaper' && !editDetails.diaperState) {
+                                setEditDetails(p => ({...p, diaperState: 'wet'}));
+                            }
                         }}
-                        className={`py-2 px-2 text-[10px] font-bold uppercase rounded-lg transition-all ${editType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
-                      >{
-                        t === 'feeding' ? '餵奶' : 
-                        (t === 'sleep' ? '沖涼' : 
-                        (t === 'pumping' ? '擠奶' : 
-                        (t === 'solids' ? '副食品' : 
-                        (t === 'colic' ? 'Colic' : 
-                        (t === 'clear_snot' ? '清鼻涕' : 
-                        (t === 'clean_mouth' ? '清潔口腔' : '換片'))))))
-                      }</button>
+                        className={`py-2 px-2 text-xs font-bold uppercase rounded-lg transition-all flex-1 ${editType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                      >
+                        {t === 'feeding' ? '餵奶' : (t === 'sleep' ? '沖涼' : (t === 'diaper' ? '換片' : '副食品'))}
+                      </button>
                   ))}
                </div>
 
-               {/* Quick Action for All Day Sleep removed */}
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>
-                     <input 
-                       type="datetime-local" 
-                       value={editStartTime}
-                       onChange={e => setEditStartTime(e.target.value)}
-                       className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
-                     />
-                  </div>
-                  <div className="space-y-1">
-                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">結束時間</label>
-                     <input 
-                       type="datetime-local" 
-                       value={editEndTime}
-                       onChange={e => setEditEndTime(e.target.value)}
-                       className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
-                     />
-                  </div>
-               </div>
+               {/* Time Inputs */}
+               {editType === 'diaper' ? (
+                   <div className="space-y-4">
+                       <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">時間</label>
+                          <input 
+                            type="datetime-local" 
+                            value={editEndTime}
+                            onChange={e => {
+                               setEditEndTime(e.target.value);
+                               setEditStartTime(e.target.value);
+                            }}
+                            className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
+                          />
+                       </div>
+                       <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">狀態</label>
+                          <div className="grid grid-cols-4 gap-2">
+                             {['dry', 'wet', 'dirty', 'mixed'].map((type) => (
+                                 <button
+                                     key={type}
+                                     onClick={() => setEditDetails(p => ({ ...p, diaperState: type as any }))}
+                                     className={`py-2 rounded-xl text-xs font-bold transition-colors border ${editDetails.diaperState === type ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                 >
+                                     {type === 'dry' ? '乾' : type === 'wet' ? '濕' : (type === 'dirty' ? '髒' : '混')}
+                                 </button>
+                             ))}
+                          </div>
+                       </div>
+                   </div>
+               ) : (
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>
+                         <input 
+                           type="datetime-local" 
+                           value={editStartTime}
+                           onChange={e => setEditStartTime(e.target.value)}
+                           className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
+                         />
+                      </div>
+                      <div className="space-y-1">
+                         <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">結束時間</label>
+                         <input 
+                           type="datetime-local" 
+                           value={editEndTime}
+                           onChange={e => setEditEndTime(e.target.value)}
+                           className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
+                         />
+                      </div>
+                   </div>
+               )}
+
+               {/* Quick Durations for Feeding */}
+               {editType === 'feeding' && (
+                   <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800 mt-4">
+                        <div className="flex flex-col items-center space-y-3">
+                            <div className="flex justify-center space-x-2 mt-2">
+                              <span className="text-sm font-bold text-pink-600 dark:text-pink-400">快速設定餵奶時間（由結束時間回推）</span>
+                            </div>
+                            <div className="flex items-center justify-center space-x-2">
+                              <input 
+                                type="number" 
+                                placeholder="20" 
+                                id="history-feeding-duration-input"
+                                className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const val = parseInt(e.currentTarget.value);
+                                    if (!isNaN(val) && val > 0) {
+                                      const end = editEndTime ? new Date(editEndTime).getTime() : Date.now();
+                                      const newStart = end - val * 60 * 1000;
+                                      setEditStartTime(toLocalISO(newStart));
+                                      if(!editEndTime) setEditEndTime(toLocalISO(end));
+                                      e.currentTarget.value = '';
+                                    }
+                                  }
+                                }}
+                              />
+                              <span className="text-slate-500 dark:text-slate-400 font-medium">分鐘</span>
+                              <button 
+                                onClick={() => {
+                                  const input = document.getElementById('history-feeding-duration-input') as HTMLInputElement;
+                                  const val = parseInt(input.value);
+                                  if (!isNaN(val) && val > 0) {
+                                    const end = editEndTime ? new Date(editEndTime).getTime() : Date.now();
+                                    const newStart = end - val * 60 * 1000;
+                                    setEditStartTime(toLocalISO(newStart));
+                                    if(!editEndTime) setEditEndTime(toLocalISO(end));
+                                    input.value = '';
+                                  }
+                                }}
+                                className="ml-1 px-3 py-2 bg-pink-100 hover:bg-pink-200 dark:bg-pink-900/30 dark:hover:bg-pink-900/50 text-pink-600 dark:text-pink-400 rounded-lg text-sm font-bold transition-colors"
+                              >
+                                設定
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap justify-center gap-2 mt-1 mb-2">
+                                {[10, 15, 20].map(mins => (
+                                    <button 
+                                        key={mins}
+                                        onClick={() => {
+                                            const end = editEndTime ? new Date(editEndTime).getTime() : Date.now();
+                                            const newStart = end - mins * 60 * 1000;
+                                            setEditStartTime(toLocalISO(newStart));
+                                            if(!editEndTime) setEditEndTime(toLocalISO(end));
+                                        }}
+                                        className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                                    >
+                                        +{mins} 分鐘
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                   </div>
+               )}
+
+               {/* Quick Durations for Sleep */}
+               {editType === 'sleep' && (
+                   <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800 mt-4">
+                        <div className="flex flex-col items-center space-y-3">
+                            <div className="flex justify-center space-x-2 mt-2">
+                              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">快速設定沖涼時間（由結束時間回推）</span>
+                            </div>
+                            <div className="flex items-center justify-center space-x-2">
+                              <input 
+                                type="number" 
+                                placeholder="10" 
+                                id="history-sleep-duration-input"
+                                className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const val = parseInt(e.currentTarget.value);
+                                    if (!isNaN(val) && val > 0) {
+                                      const end = editEndTime ? new Date(editEndTime).getTime() : Date.now();
+                                      const newStart = end - val * 60 * 1000;
+                                      setEditStartTime(toLocalISO(newStart));
+                                      if(!editEndTime) setEditEndTime(toLocalISO(end));
+                                      e.currentTarget.value = '';
+                                    }
+                                  }
+                                }}
+                              />
+                              <span className="text-slate-500 dark:text-slate-400 font-medium">分鐘</span>
+                              <button 
+                                onClick={() => {
+                                  const input = document.getElementById('history-sleep-duration-input') as HTMLInputElement;
+                                  const val = parseInt(input.value);
+                                  if (!isNaN(val) && val > 0) {
+                                    const end = editEndTime ? new Date(editEndTime).getTime() : Date.now();
+                                    const newStart = end - val * 60 * 1000;
+                                    setEditStartTime(toLocalISO(newStart));
+                                    if(!editEndTime) setEditEndTime(toLocalISO(end));
+                                    input.value = '';
+                                  }
+                                }}
+                                className="ml-1 px-3 py-2 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-bold transition-colors"
+                              >
+                                設定
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap justify-center gap-2 mt-1 mb-2">
+                                {[5, 10, 15, 20].map(mins => (
+                                    <button 
+                                        key={mins}
+                                        onClick={() => {
+                                            const end = editEndTime ? new Date(editEndTime).getTime() : Date.now();
+                                            const newStart = end - mins * 60 * 1000;
+                                            setEditStartTime(toLocalISO(newStart));
+                                            if(!editEndTime) setEditEndTime(toLocalISO(end));
+                                        }}
+                                        className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                                    >
+                                        +{mins} 分鐘
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                   </div>
+               )}
 
                {/* Dynamic Details Fields */}
                {editType === 'feeding' && (
@@ -616,33 +774,18 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                    </div>
                )}
 
-               {editType === 'diaper' && (
-                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                       <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">狀態</p>
-                       <div className="flex space-x-2">
-                           {['wet', 'dirty', 'mixed'].map((s) => (
-                               <button
-                                 key={s}
-                                 onClick={() => setEditDetails(p => ({ ...p, diaperState: s as any }))}
-                                 className={`flex-1 py-2 rounded-lg text-sm capitalize border ${editDetails.diaperState === s ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 font-bold' : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
-                               >
-                                   {s === 'wet' ? '濕' : (s === 'dirty' ? '髒' : '混合')}
-                               </button>
-                           ))}
-                       </div>
-                   </div>
+               {editType !== 'feeding' && editType !== 'pumping' && (
+                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">備註</label>
+                    <textarea
+                      className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none text-slate-700"
+                      placeholder="新增內容..."
+                      value={editDetails.notes || ''}
+                      onChange={(e) => setEditDetails(p => ({ ...p, notes: e.target.value }))}
+                      rows={3}
+                    />
+                 </div>
                )}
-
-               <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 block">備註</label>
-                  <textarea
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none text-slate-700"
-                    placeholder="新增內容..."
-                    value={editDetails.notes || ''}
-                    onChange={(e) => setEditDetails(p => ({ ...p, notes: e.target.value }))}
-                    rows={3}
-                  />
-               </div>
             </div>
             
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-6">
