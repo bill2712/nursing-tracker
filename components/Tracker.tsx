@@ -755,7 +755,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       </div>
       
       {/* Quick Actions (Bottom) */}
-      <div className="mt-auto space-y-2.5">
+      <div className="space-y-2">
          {/* 每日任務 Daily Tasks */}
          <div>
             <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mb-1.5 uppercase tracking-wider">每日任務</p>
