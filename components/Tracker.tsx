@@ -65,7 +65,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       feeding: sorted.find(l => l.type === 'feeding'),
       sleep: sorted.find(l => l.type === 'sleep'),
       diaper: sorted.find(l => l.type === 'diaper'),
-      solids: sorted.find(l => l.type === 'solids')
+      solids: sorted.find(l => l.type === 'solids'),
+      colic: sorted.find(l => l.type === 'colic')
     };
   }, [appState.logs]);
 
@@ -73,6 +74,12 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     const now = Date.now();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 }).getTime();
     return appState.logs.filter(l => l.type === 'sleep' && l.startTime >= weekStart).length;
+  }, [appState.logs]);
+
+  const dailyColicCount = useMemo(() => {
+    const now = Date.now();
+    const dayStart = startOfDay(now).getTime();
+    return appState.logs.filter(l => l.type === 'colic' && l.startTime >= dayStart).length;
   }, [appState.logs]);
 
   const dailyFeedingVolume = useMemo(() => {
@@ -627,7 +634,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       </div>
 
       {/* Last Activity Dashboard */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         <div className="bg-white dark:bg-slate-900 px-2 py-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between text-center h-full">
            <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">上次餵奶</span>
            <span className="text-sm sm:text-lg font-black text-pink-600 dark:text-pink-400 leading-tight">
@@ -668,6 +675,18 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
              </span>
              <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate">
                今: {dailyDiaperCounts.wet}濕 {dailyDiaperCounts.dirty}髒
+             </span>
+           </div>
+        </div>
+        
+        <div className="bg-white dark:bg-slate-900 px-2 py-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between text-center h-full">
+           <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">上次 Colic</span>
+           <span className="text-sm sm:text-lg font-black text-rose-600 dark:text-rose-400 leading-tight">
+             {lastActivities.colic ? formatTimeAgoAbsolute(lastActivities.colic.startTime) : '--'}
+           </span>
+           <div className="mt-2 space-y-0.5">
+             <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 truncate">
+               今日 {dailyColicCount} 次
              </span>
            </div>
         </div>
@@ -780,7 +799,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
 
          {/* Quick Add Diaper */}
          <div>
-            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">快速換片</p>
+           <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">快速換片</p>
             <div className="grid grid-cols-3 gap-2">
                {['wet', 'dirty', 'mixed'].map((type) => (
                    <button
@@ -797,6 +816,32 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                        className="bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 py-3.5 rounded-2xl text-[13px] font-black tracking-wide capitalize transition-all active:scale-95 shadow-sm flex justify-center items-center space-x-1"
                    >
                        <span>{type === 'wet' ? '💧 濕' : (type === 'dirty' ? '💩 髒' : '✨ 混合')}</span>
+                   </button>
+               ))}
+            </div>
+         </div>
+
+         {/* Quick Add Colic */}
+         <div>
+            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">快速 COLIC</p>
+            <div className="grid grid-cols-3 gap-2">
+               {[15, 30, 60].map((mins) => (
+                   <button
+                       key={mins}
+                       onClick={async () => {
+                           const newLog: LogEntry = {
+                               id: generateId(),
+                               type: 'colic',
+                               startTime: Date.now() - (mins * 60 * 1000),
+                               endTime: Date.now(),
+                               durationSeconds: mins * 60,
+                               details: {}
+                           };
+                           await setDoc(doc(db, 'logs', newLog.id), newLog);
+                       }}
+                       className="bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-900/60 text-rose-800 dark:text-rose-300 py-3.5 rounded-2xl text-[13px] font-black tracking-wide transition-all active:scale-95 shadow-sm flex justify-center items-center space-x-1"
+                   >
+                       <span>{mins === 60 ? '1 小時' : `${mins} 分鐘`}</span>
                    </button>
                ))}
             </div>
