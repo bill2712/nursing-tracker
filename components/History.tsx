@@ -463,8 +463,12 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
       {/* Full Edit/Create Modal */}
       {editingLog && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setEditingLog(null)}>
-          <div className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
+          <div className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Mobile Drag Handle */}
+            <div className="w-full flex justify-center pt-3 pb-2 sm:hidden bg-slate-50 dark:bg-slate-800/50">
+              <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
+            </div>
+            <div className="p-4 pt-1 sm:pt-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
               <h3 className="font-bold text-slate-700 dark:text-slate-200">{isCreating ? '新增紀錄' : '編輯紀錄'}</h3>
               <button onClick={() => setEditingLog(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-sm font-medium">
                  取消
@@ -553,6 +557,8 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                             <div className="flex items-center justify-center space-x-2">
                               <input 
                                 type="number" 
+                                inputMode="decimal"
+                                pattern="[0-9]*"
                                 placeholder="20" 
                                 id="history-feeding-duration-input"
                                 className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
@@ -597,7 +603,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                                             setEditStartTime(toLocalISO(newStart));
                                             if(!editEndTime) setEditEndTime(toLocalISO(end));
                                         }}
-                                        className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-all h-9 flex items-center justify-center"
                                     >
                                         +{mins} 分鐘
                                     </button>
@@ -617,6 +623,8 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                             <div className="flex items-center justify-center space-x-2">
                               <input 
                                 type="number" 
+                                inputMode="decimal"
+                                pattern="[0-9]*"
                                 placeholder="10" 
                                 id="history-sleep-duration-input"
                                 className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
@@ -661,7 +669,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                                             setEditStartTime(toLocalISO(newStart));
                                             if(!editEndTime) setEditEndTime(toLocalISO(end));
                                         }}
-                                        className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                                        className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-all h-9 flex items-center justify-center"
                                     >
                                         +{mins} 分鐘
                                     </button>
@@ -677,9 +685,11 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                       <div className="flex justify-center items-center space-x-2">
                               <input 
                                 type="number" 
+                                inputMode="decimal"
+                                pattern="[0-9]*"
                                 placeholder="份量" 
                                 value={editDetails.amountMl || ''}
-                                className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
+                                className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
                                 onChange={e => setEditDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
                               />
                               <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
@@ -703,9 +713,11 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                        <div className="flex justify-center items-center space-x-2">
                           <input 
                             type="number" 
+                            inputMode="decimal"
+                            pattern="[0-9]*"
                             placeholder="份量" 
                             value={editDetails.amountMl || ''}
-                            className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
+                            className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
                             onChange={e => setEditDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
                           />
                           <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
@@ -788,7 +800,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                )}
             </div>
             
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-6">
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-8">
                <button 
                  onClick={saveEdit}
                  className="w-full py-3 bg-slate-900 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors shadow-lg"

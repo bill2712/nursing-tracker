@@ -427,6 +427,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                   <div className="flex items-center justify-center space-x-2">
                     <input 
                       type="number" 
+                      inputMode="decimal"
+                      pattern="[0-9]*"
                       placeholder="+20" 
                       id="custom-duration-input"
                       className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
@@ -460,7 +462,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                           <button 
                               key={mins}
                               onClick={() => handleAddTime(mins)}
-                              className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-all h-9 flex items-center justify-center"
                           >
                               +{mins} 分鐘
                           </button>
@@ -476,6 +478,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                   <div className="flex items-center justify-center space-x-2">
                     <input 
                       type="number" 
+                      inputMode="decimal"
+                      pattern="[0-9]*"
                       placeholder="ml" 
                       value={appState.activeTimer.details?.amountMl || ''}
                       className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
@@ -489,7 +493,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                           <button 
                               key={amt}
                               onClick={() => updateActiveDetails({ amountMl: amt, feedingType: 'bottle' })}
-                              className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-all h-9 flex items-center justify-center"
                           >
                               {amt}ml
                           </button>
@@ -509,6 +513,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                   <div className="flex items-center justify-center space-x-2">
                     <input 
                       type="number" 
+                      inputMode="decimal"
+                      pattern="[0-9]*"
                       placeholder="+10" 
                       id="active-sleep-duration-input"
                       className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
@@ -542,7 +548,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                           <button 
                               key={mins}
                               onClick={() => handleAddTime(mins)}
-                              className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-all h-9 flex items-center justify-center"
                           >
                               +{mins} 分鐘
                           </button>
@@ -1028,6 +1034,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                               <div className="flex items-center justify-center space-x-2">
                                 <input 
                                   type="number" 
+                                  inputMode="decimal"
+                                  pattern="[0-9]*"
                                   placeholder="20" 
                                   id="manual-duration-input"
                                   className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
@@ -1069,7 +1077,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                               const newStart = end - mins * 60 * 1000;
                                               setManualStartTime(new Date(newStart - new Date(newStart).getTimezoneOffset() * 60000).toISOString().slice(0, 16));
                                           }}
-                                          className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                                          className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-all h-9 flex items-center justify-center"
                                       >
                                           {mins} 分鐘
                                       </button>
@@ -1083,9 +1091,11 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                   <div className="flex justify-center items-center space-x-2">
                                     <input 
                                       type="number" 
+                                      inputMode="decimal"
+                                      pattern="[0-9]*"
                                       placeholder="份量" 
                                       value={manualDetails.amountMl || ''}
-                                      className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
+                                      className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
                                       onChange={e => setManualDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0, feedingType: 'bottle' }))}
                                     />
                                     <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
@@ -1096,7 +1106,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                             <button 
                                                 key={amt}
                                                 onClick={() => setManualDetails(p => ({ ...p, amountMl: amt, feedingType: 'bottle' }))}
-                                                className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300"
+                                                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-all h-9 flex items-center justify-center"
                                             >
                                                 {amt}ml
                                             </button>
@@ -1121,7 +1131,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  )}
               </div>
               
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-6">
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-8">
                  <button 
                    onClick={handleManualSubmit}
                    className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors shadow-lg"
