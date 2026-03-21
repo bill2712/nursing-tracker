@@ -62,7 +62,7 @@ const App: React.FC = () => {
     if (!user || !ALERT_emails.includes(user.email || '')) return;
 
     // 1. Listen to Logs
-    const q = query(collection(db, 'logs'), orderBy('startTime', 'desc'), limit(500)); 
+    const q = query(collection(db, 'logs'), orderBy('startTime', 'desc'), limit(5000)); 
     const unsubLogs = onSnapshot(q, (snapshot) => {
       const logs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as LogEntry));
       setAppState(prev => ({ 
