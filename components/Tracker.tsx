@@ -954,7 +954,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                               const newStart = end - mins * 60 * 1000;
                                               setManualStartTime(new Date(newStart - new Date(newStart).getTimezoneOffset() * 60000).toISOString().slice(0, 16));
                                           }}
-                                          className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                                          className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-all h-9 flex items-center justify-center"
                                       >
                                           {mins} 分鐘
                                       </button>
