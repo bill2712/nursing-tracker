@@ -32,7 +32,7 @@ export interface LogEntry {
     feedingType?: FeedingType;
     side?: FeedingSide;
     amountMl?: number;
-    diaperState?: 'wet' | 'dirty' | 'mixed';
+    diaperState?: 'wet' | 'dirty' | 'mixed' | 'dry';
     foods?: string[];
     reaction?: string;
     notes?: string;

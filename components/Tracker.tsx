@@ -714,8 +714,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
          {/* Quick Add Diaper */}
          <div>
             <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">快速換片</p>
-            <div className="grid grid-cols-3 gap-2">
-               {['wet', 'dirty', 'mixed'].map((type) => (
+            <div className="grid grid-cols-4 gap-2">
+               {['dry', 'wet', 'dirty', 'mixed'].map((type) => (
                    <button
                        key={type}
                        onClick={async () => {
@@ -729,7 +729,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                        }}
                        className="bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 py-2 rounded-xl text-xs font-bold capitalize transition-colors"
                    >
-                       {type === 'wet' ? '濕' : (type === 'dirty' ? '髒' : '混合')}
+                       {type === 'dry' ? '乾' : type === 'wet' ? '濕' : (type === 'dirty' ? '髒' : '混合')}
                    </button>
                ))}
             </div>
@@ -793,17 +793,33 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  {/* Special "All Day Sleep" Shortcut removed for bath */}
                  {/* Time Inputs */}
                  {manualType === 'diaper' ? (
-                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">時間</label>
-                        <input 
-                          type="datetime-local" 
-                          value={manualEndTime}
-                          onChange={e => {
-                             setManualEndTime(e.target.value);
-                             setManualStartTime(e.target.value);
-                          }}
-                          className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
-                        />
+                     <div className="space-y-4">
+                         <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">時間</label>
+                            <input 
+                              type="datetime-local" 
+                              value={manualEndTime}
+                              onChange={e => {
+                                 setManualEndTime(e.target.value);
+                                 setManualStartTime(e.target.value);
+                              }}
+                              className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
+                            />
+                         </div>
+                         <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">狀態</label>
+                            <div className="grid grid-cols-4 gap-2">
+                               {['dry', 'wet', 'dirty', 'mixed'].map((type) => (
+                                   <button
+                                       key={type}
+                                       onClick={() => setManualDetails(p => ({ ...p, diaperState: type as any }))}
+                                       className={`py-2 rounded-xl text-xs font-bold transition-colors border ${manualDetails.diaperState === type ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                   >
+                                       {type === 'dry' ? '乾' : type === 'wet' ? '濕' : (type === 'dirty' ? '髒' : '混')}
+                                   </button>
+                               ))}
+                            </div>
+                         </div>
                      </div>
                  ) : (
                      <div className="grid grid-cols-2 gap-4">
@@ -830,16 +846,62 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
 
                  {/* Quick Durations for Sleep */}
                  {manualType === 'sleep' && (
-                     <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                         {[5, 10, 15, 20, 30].map(m => (
-                             <button 
-                                key={m} 
-                                onClick={() => addDurationToManual(m)}
-                                className="shrink-0 px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-800"
-                             >
-                                 +{m}分
-                             </button>
-                         ))}
+                     <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800 mt-4">
+                          <div className="flex flex-col items-center space-y-3">
+                              <div className="flex justify-center space-x-2 mt-2">
+                                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">快速設定沖涼時間（由結束時間回推）</span>
+                              </div>
+                              <div className="flex items-center justify-center space-x-2">
+                                <input 
+                                  type="number" 
+                                  placeholder="10" 
+                                  id="manual-sleep-duration-input"
+                                  className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      const val = parseInt(e.currentTarget.value);
+                                      if (!isNaN(val) && val > 0) {
+                                        const end = new Date(manualEndTime).getTime();
+                                        const newStart = end - val * 60 * 1000;
+                                        setManualStartTime(new Date(newStart - new Date(newStart).getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                                        e.currentTarget.value = '';
+                                      }
+                                    }
+                                  }}
+                                />
+                                <span className="text-slate-500 dark:text-slate-400 font-medium">分鐘</span>
+                                <button 
+                                  onClick={() => {
+                                    const input = document.getElementById('manual-sleep-duration-input') as HTMLInputElement;
+                                    const val = parseInt(input.value);
+                                    if (!isNaN(val) && val > 0) {
+                                      const end = new Date(manualEndTime).getTime();
+                                      const newStart = end - val * 60 * 1000;
+                                      setManualStartTime(new Date(newStart - new Date(newStart).getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                                      input.value = '';
+                                    }
+                                  }}
+                                  className="ml-1 px-3 py-2 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-bold transition-colors"
+                                >
+                                  設定
+                                </button>
+                              </div>
+                              <div className="flex flex-wrap justify-center gap-2 mt-1 mb-2">
+                                  {[5, 10, 15, 20].map(mins => (
+                                      <button 
+                                          key={mins}
+                                          onClick={() => {
+                                              const end = new Date(manualEndTime).getTime();
+                                              const newStart = end - mins * 60 * 1000;
+                                              setManualStartTime(new Date(newStart - new Date(newStart).getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                                          }}
+                                          className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                                      >
+                                          {mins} 分鐘
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
                      </div>
                  )}
 
