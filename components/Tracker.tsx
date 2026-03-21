@@ -268,6 +268,16 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
   };
 
+  const handleAddTime = async (minutes: number) => {
+    if (!appState.activeTimer) return;
+    const msToAdd = minutes * 60 * 1000;
+    const updatedTimer = {
+        ...appState.activeTimer,
+        startTime: appState.activeTimer.startTime - msToAdd
+    };
+    await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
+  };
+
   const handleManualSubmit = async () => {
     if (!manualStartTime || !manualEndTime) {
       alert("Please select start and end times");
@@ -277,7 +287,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     const start = new Date(manualStartTime).getTime();
     const end = new Date(manualEndTime).getTime();
 
-    if (end <= start) {
+    if (manualType !== 'diaper' && end <= start) {
       alert("End time must be after start time");
       return;
     }
@@ -392,22 +402,74 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
           {isSnoozed && <div className="text-sm text-amber-600 dark:text-amber-400 mt-2 font-bold animate-pulse">5分鐘後自動繼續</div>}
         </div>
 
-        {/* Notes Input */}
-        <div className="w-full max-w-sm space-y-2">
-           <label className="text-xs font-bold text-slate-400 uppercase ml-1">備註</label>
-           <textarea
-             className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none text-slate-700 dark:text-slate-200 bg-white/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 transition-colors"
-             placeholder="新增備註..."
-             value={appState.activeTimer.details?.notes || ''}
-             onChange={(e) => updateActiveDetails({ notes: e.target.value })}
-             rows={2}
-           />
-        </div>
+        {/* Notes Input (Hidden for Feeding) */}
+        {!isFeeding && (
+          <div className="w-full max-w-sm space-y-2">
+             <label className="text-xs font-bold text-slate-400 uppercase ml-1">備註</label>
+             <textarea
+               className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none text-slate-700 dark:text-slate-200 bg-white/50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 transition-colors"
+               placeholder="新增備註..."
+               value={appState.activeTimer.details?.notes || ''}
+               onChange={(e) => updateActiveDetails({ notes: e.target.value })}
+               rows={2}
+             />
+          </div>
+        )}
 
-        {/* Simplified Feeding Controls (Input ML directly) */}
+        {/* Simplified Feeding Controls */}
         {isFeeding && (
           <div className="w-full max-w-sm space-y-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
-              <div className="flex justify-center space-x-2 mb-2">
+              {/* Duration Controls */}
+              <div className="flex flex-col items-center space-y-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex justify-center space-x-2 mb-1">
+                    <span className="text-sm font-bold text-pink-600 dark:text-pink-400">增加餵奶時間</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-2">
+                    <input 
+                      type="number" 
+                      placeholder="+20" 
+                      id="custom-duration-input"
+                      className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = parseInt(e.currentTarget.value);
+                          if (!isNaN(val) && val > 0) {
+                            handleAddTime(val);
+                            e.currentTarget.value = '';
+                          }
+                        }
+                      }}
+                    />
+                    <span className="text-slate-500 dark:text-slate-400 font-medium">分鐘</span>
+                    <button 
+                      onClick={() => {
+                        const input = document.getElementById('custom-duration-input') as HTMLInputElement;
+                        const val = parseInt(input.value);
+                        if (!isNaN(val) && val > 0) {
+                          handleAddTime(val);
+                          input.value = '';
+                        }
+                      }}
+                      className="ml-1 px-3 py-2 bg-pink-100 hover:bg-pink-200 dark:bg-pink-900/30 dark:hover:bg-pink-900/50 text-pink-600 dark:text-pink-400 rounded-lg text-sm font-bold transition-colors"
+                    >
+                      加入
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2 mt-1">
+                      {[10, 15, 20].map(mins => (
+                          <button 
+                              key={mins}
+                              onClick={() => handleAddTime(mins)}
+                              className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                          >
+                              +{mins} 分鐘
+                          </button>
+                      ))}
+                  </div>
+              </div>
+
+              {/* Volume Controls */}
+              <div className="flex justify-center space-x-2 mb-2 mt-2">
                 <span className="text-sm font-bold text-pink-600 dark:text-pink-400">餵奶份量</span>
               </div>
               <div className="flex flex-col items-center space-y-3">
@@ -715,45 +777,56 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                <div className="p-6 space-y-6 overflow-y-auto w-full">
                  {/* Type Selector */}
                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-wrap">
-                    {['feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic', 'clear_snot', 'clean_mouth'].map((t) => (
+                    {['feeding', 'sleep', 'diaper', 'solids'].map((t) => (
                       <button 
                         key={t}
                         onClick={() => setManualType(t as ActivityType)}
-                        className={`py-2 px-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all ${manualType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                        className={`py-2 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${manualType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                       >{
                         t === 'feeding' ? '餵奶' : 
                         (t === 'sleep' ? '沖涼' : 
-                        (t === 'pumping' ? '擠奶' : 
-                        (t === 'solids' ? '副食品' : 
-                        (t === 'colic' ? 'Colic' : 
-                        (t === 'clear_snot' ? '清鼻涕' : 
-                        (t === 'clean_mouth' ? '清潔口腔' : '換片'))))))
+                        (t === 'solids' ? '副食品' : '換片'))
                       }</button>
                     ))}
                  </div>
                  
                  {/* Special "All Day Sleep" Shortcut removed for bath */}
                  {/* Time Inputs */}
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>
-                       <input 
-                         type="datetime-local" 
-                         value={manualStartTime}
-                         onChange={e => setManualStartTime(e.target.value)}
-                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
-                       />
-                    </div>
-                    <div className="space-y-1">
-                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">結束時間</label>
-                       <input 
-                         type="datetime-local" 
-                         value={manualEndTime}
-                         onChange={e => setManualEndTime(e.target.value)}
-                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
-                       />
-                    </div>
-                 </div>
+                 {manualType === 'diaper' ? (
+                     <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">時間</label>
+                        <input 
+                          type="datetime-local" 
+                          value={manualEndTime}
+                          onChange={e => {
+                             setManualEndTime(e.target.value);
+                             setManualStartTime(e.target.value);
+                          }}
+                          className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
+                        />
+                     </div>
+                 ) : (
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>
+                           <input 
+                             type="datetime-local" 
+                             value={manualStartTime}
+                             onChange={e => setManualStartTime(e.target.value)}
+                             className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
+                           />
+                        </div>
+                        <div className="space-y-1">
+                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">結束時間</label>
+                           <input 
+                             type="datetime-local" 
+                             value={manualEndTime}
+                             onChange={e => setManualEndTime(e.target.value)}
+                             className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
+                           />
+                        </div>
+                     </div>
+                 )}
 
                  {/* Quick Durations for Sleep */}
                  {manualType === 'sleep' && (
@@ -834,42 +907,103 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  {manualType === 'feeding' && (
                     <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                          <div className="flex flex-col items-center space-y-3">
-                              <div className="flex justify-center items-center space-x-2">
+                              <div className="flex justify-center space-x-2 mt-2">
+                                <span className="text-sm font-bold text-pink-600 dark:text-pink-400">快速設定餵奶時間（由結束時間回推）</span>
+                              </div>
+                              <div className="flex items-center justify-center space-x-2">
                                 <input 
                                   type="number" 
-                                  placeholder="份量" 
-                                  value={manualDetails.amountMl || ''}
-                                  className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
-                                  onChange={e => setManualDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0, feedingType: 'bottle' }))}
+                                  placeholder="20" 
+                                  id="manual-duration-input"
+                                  className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      const val = parseInt(e.currentTarget.value);
+                                      if (!isNaN(val) && val > 0) {
+                                        const end = new Date(manualEndTime).getTime();
+                                        const newStart = end - val * 60 * 1000;
+                                        setManualStartTime(new Date(newStart - new Date(newStart).getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                                        e.currentTarget.value = '';
+                                      }
+                                    }
+                                  }}
                                 />
-                                <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
+                                <span className="text-slate-500 dark:text-slate-400 font-medium">分鐘</span>
+                                <button 
+                                  onClick={() => {
+                                    const input = document.getElementById('manual-duration-input') as HTMLInputElement;
+                                    const val = parseInt(input.value);
+                                    if (!isNaN(val) && val > 0) {
+                                      const end = new Date(manualEndTime).getTime();
+                                      const newStart = end - val * 60 * 1000;
+                                      setManualStartTime(new Date(newStart - new Date(newStart).getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                                      input.value = '';
+                                    }
+                                  }}
+                                  className="ml-1 px-3 py-2 bg-pink-100 hover:bg-pink-200 dark:bg-pink-900/30 dark:hover:bg-pink-900/50 text-pink-600 dark:text-pink-400 rounded-lg text-sm font-bold transition-colors"
+                                >
+                                  設定
+                                </button>
                               </div>
-                               {/* Quick Select Buttons */}
-                               <div className="flex flex-wrap justify-center gap-2">
-                                    {[110, 140, 170, 200].map(amt => (
-                                        <button 
-                                            key={amt}
-                                            onClick={() => setManualDetails(p => ({ ...p, amountMl: amt, feedingType: 'bottle' }))}
-                                            className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300"
-                                        >
-                                            {amt}ml
-                                        </button>
-                                    ))}
-                                </div>
+                              <div className="flex flex-wrap justify-center gap-2 mt-1 mb-4">
+                                  {[10, 15, 20].map(mins => (
+                                      <button 
+                                          key={mins}
+                                          onClick={() => {
+                                              const end = new Date(manualEndTime).getTime();
+                                              const newStart = end - mins * 60 * 1000;
+                                              setManualStartTime(new Date(newStart - new Date(newStart).getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                                          }}
+                                          className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors"
+                                      >
+                                          {mins} 分鐘
+                                      </button>
+                                  ))}
+                              </div>
+
+                              <div className="flex justify-center flex-col items-center space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800 w-full">
+                                  <div className="flex justify-center space-x-2">
+                                    <span className="text-sm font-bold text-pink-600 dark:text-pink-400">餵奶份量</span>
+                                  </div>
+                                  <div className="flex justify-center items-center space-x-2">
+                                    <input 
+                                      type="number" 
+                                      placeholder="份量" 
+                                      value={manualDetails.amountMl || ''}
+                                      className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center"
+                                      onChange={e => setManualDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0, feedingType: 'bottle' }))}
+                                    />
+                                    <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
+                                  </div>
+                                   {/* Quick Select Buttons */}
+                                   <div className="flex flex-wrap justify-center gap-2">
+                                        {[110, 140, 170, 200].map(amt => (
+                                            <button 
+                                                key={amt}
+                                                onClick={() => setManualDetails(p => ({ ...p, amountMl: amt, feedingType: 'bottle' }))}
+                                                className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300"
+                                            >
+                                                {amt}ml
+                                            </button>
+                                        ))}
+                                    </div>
+                               </div>
                            </div>
                     </div>
                  )}
 
-                 <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
-                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">備註</label>
-                   <textarea
-                     className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none"
-                     placeholder="新增內容..."
-                     value={manualDetails.notes || ''}
-                     onChange={(e) => setManualDetails(p => ({ ...p, notes: e.target.value }))}
-                     rows={3}
-                   />
-                 </div>
+                 {manualType !== 'feeding' && (
+                     <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
+                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">備註</label>
+                       <textarea
+                         className="w-full p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 dark:text-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none resize-none"
+                         placeholder="新增內容..."
+                         value={manualDetails.notes || ''}
+                         onChange={(e) => setManualDetails(p => ({ ...p, notes: e.target.value }))}
+                         rows={3}
+                       />
+                     </div>
+                 )}
               </div>
               
               <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-6">
