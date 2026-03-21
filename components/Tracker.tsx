@@ -178,10 +178,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
   const stopTimer = async () => {
     if (!appState.activeTimer) return;
 
-    const { startTime, pauseStartTime, ignoredDurationMs } = appState.activeTimer;
+    const { startTime, pauseStartTime, ignoredDurationMs, addedDurationMs } = appState.activeTimer;
     
     // Calculate end time and duration
-    const effectiveEndTime = pauseStartTime || Date.now();
+    const effectiveEndTime = (pauseStartTime || Date.now()) + (addedDurationMs || 0);
     const durationSeconds = Math.floor((effectiveEndTime - startTime - (ignoredDurationMs || 0)) / 1000);
     
     if (durationSeconds > 2) {
@@ -272,7 +272,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     const msToAdd = minutes * 60 * 1000;
     const updatedTimer = {
         ...appState.activeTimer,
-        startTime: appState.activeTimer.startTime - msToAdd
+        addedDurationMs: (appState.activeTimer.addedDurationMs || 0) + msToAdd
     };
     await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
   };
