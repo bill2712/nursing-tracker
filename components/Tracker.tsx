@@ -65,9 +65,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       feeding: sorted.find(l => l.type === 'feeding'),
       sleep: sorted.find(l => l.type === 'sleep'),
       diaper: sorted.find(l => l.type === 'diaper'),
-      pumping: sorted.find(l => l.type === 'pumping'),
-      solids: sorted.find(l => l.type === 'solids'),
-      colic: sorted.find(l => l.type === 'colic'),
+      solids: sorted.find(l => l.type === 'solids')
     };
   }, [appState.logs]);
 
@@ -75,12 +73,6 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     const now = Date.now();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 }).getTime();
     return appState.logs.filter(l => l.type === 'sleep' && l.startTime >= weekStart).length;
-  }, [appState.logs]);
-
-  const dailyColicCount = useMemo(() => {
-    const now = Date.now();
-    const dayStart = startOfDay(now).getTime();
-    return appState.logs.filter(l => l.type === 'colic' && l.startTime >= dayStart).length;
   }, [appState.logs]);
 
   const dailyFeedingVolume = useMemo(() => {
@@ -635,45 +627,49 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       </div>
 
       {/* Last Activity Dashboard */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次餵奶</span>
-           <span className="text-sm font-bold text-pink-600 dark:text-pink-400">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="bg-white dark:bg-slate-900 px-2 py-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between text-center h-full">
+           <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">上次餵奶</span>
+           <span className="text-sm sm:text-lg font-black text-pink-600 dark:text-pink-400 leading-tight">
              {lastActivities.feeding ? formatTimeAgoAbsolute(lastActivities.feeding.endTime || lastActivities.feeding.startTime) : '--'}
            </span>
-           {lastActivities.feeding?.details?.amountMl && (
-             <span className="text-xs font-semibold text-pink-500/70 mt-0.5">{lastActivities.feeding.details.amountMl}ml</span>
-           )}
-           <span className="text-[10px] font-semibold text-pink-400/80 mt-1">今日 {dailyFeedingVolume}ml</span>
+           <div className="mt-2 space-y-0.5">
+             <span className="block text-xs font-black text-pink-500/80 dark:text-pink-400/80">
+               {lastActivities.feeding?.details?.amountMl ? `${lastActivities.feeding.details.amountMl}ml` : ' '}
+             </span>
+             <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate">
+               今日 {dailyFeedingVolume}ml
+             </span>
+           </div>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次沖涼</span>
-           <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-             {lastActivities.sleep ? formatTimeAgo(lastActivities.sleep.endTime || lastActivities.sleep.startTime) : '--'}
+        
+        <div className="bg-white dark:bg-slate-900 px-2 py-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between text-center h-full">
+           <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">上次沖涼</span>
+           <span className="text-sm sm:text-lg font-black text-indigo-600 dark:text-indigo-400 leading-tight">
+             {lastActivities.sleep ? formatTimeAgoAbsolute(lastActivities.sleep.endTime || lastActivities.sleep.startTime) : '--'}
            </span>
-           <span className="text-xs font-semibold text-indigo-500/70 mt-0.5">本週 {weeklyBathCount} 次</span>
+           <div className="mt-2 space-y-0.5">
+             <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 truncate">
+               本週 {weeklyBathCount} 次
+             </span>
+           </div>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次換片</span>
-           <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+
+        <div className="bg-white dark:bg-slate-900 px-2 py-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between text-center h-full">
+           <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">上次換片</span>
+           <span className="text-sm sm:text-lg font-black text-emerald-600 dark:text-emerald-400 leading-tight">
              {lastActivities.diaper ? formatTimeAgoAbsolute(lastActivities.diaper.startTime) : '--'}
            </span>
-           {lastActivities.diaper?.details?.diaperState && (
-             <span className="text-xs font-semibold text-emerald-500/70 mt-0.5">
-               {lastActivities.diaper.details.diaperState === 'wet' ? '濕' : lastActivities.diaper.details.diaperState === 'dirty' ? '髒' : '混合'}
+           <div className="mt-2 space-y-0.5">
+             <span className="block text-xs font-black text-emerald-500/80 dark:text-emerald-400/80">
+               {lastActivities.diaper?.details?.diaperState ? (
+                 lastActivities.diaper.details.diaperState === 'wet' ? '濕' : lastActivities.diaper.details.diaperState === 'dirty' ? '髒' : '混合'
+               ) : ' '}
              </span>
-           )}
-           <span className="text-[10px] font-semibold text-emerald-400/80 mt-1">今日: {dailyDiaperCounts.wet}濕 {dailyDiaperCounts.dirty}髒</span>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-           <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">上次 Colic</span>
-           <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-             {lastActivities.colic ? formatTimeAgo(lastActivities.colic.startTime) : '--'}
-           </span>
-           <span className="text-xs font-semibold text-rose-500/70 mt-0.5">
-             {lastActivities.colic?.durationSeconds ? `維持 ${Math.round(lastActivities.colic.durationSeconds / 60)} 分鐘` : ' '}
-             {(lastActivities.colic?.durationSeconds ? '，' : '')}今日 {dailyColicCount} 次
-           </span>
+             <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate">
+               今: {dailyDiaperCounts.wet}濕 {dailyDiaperCounts.dirty}髒
+             </span>
+           </div>
         </div>
       </div>
 
@@ -700,21 +696,23 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         <div className="relative group">
             <button 
               onClick={() => startTimer('sleep')}
-              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition-all text-left pb-10 sm:pb-12 h-28"
+              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl shadow-md border border-slate-100 dark:border-slate-800 hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-900 transition-all text-left flex flex-col justify-between h-36 active:scale-[0.98]"
             >
-              <div className="absolute right-[-5px] top-[-5px] p-2 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-                <DropletIcon className="w-16 h-16 text-indigo-500" />
+              <div className="absolute -right-4 -bottom-4 pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
+                <DropletIcon className="w-40 h-40 text-indigo-500" />
               </div>
-              <div className="relative z-10">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mb-2 text-indigo-600 dark:text-indigo-400">
-                  <DropletIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <div className="relative z-10 flex items-center space-x-3 mb-2">
+                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm">
+                  <DropletIcon className="w-5 h-5" />
                 </div>
-                <h3 className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 mb-0.5">開始沖涼</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-[9px] sm:text-[10px]">記錄洗澡時間</p>
+                <div>
+                   <h3 className="text-base sm:text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">開始沖涼</h3>
+                   <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs font-medium">記錄洗澡時間</p>
+                </div>
               </div>
             </button>
             {/* Quick Bathe Log Buttons Overlay */}
-            <div className="absolute bottom-2 left-2 right-2 flex space-x-1 sm:space-x-1.5 z-20">
+            <div className="absolute bottom-3 left-3 right-3 flex space-x-2 z-20">
                 {[5, 10, 15].map(mins => (
                     <button
                         key={mins}
@@ -722,7 +720,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                             e.stopPropagation();
                             quickLogSleep(mins);
                         }}
-                        className="flex-1 py-1 text-[9px] font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors border border-indigo-100 dark:border-indigo-800"
+                        className="flex-1 py-1.5 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors border border-indigo-200/50 dark:border-indigo-800 active:scale-95 shadow-sm"
                     >
                         {mins}分
                     </button>
@@ -747,10 +745,15 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                        };
                        await setDoc(doc(db, 'logs', newLog.id), newLog);
                    }}
-                   className={`border py-2 rounded-xl text-xs font-bold transition-colors flex flex-col items-center ${dailySnotCount >= 2 ? 'bg-sky-500 text-white border-sky-500 shadow-sm' : 'bg-sky-50 dark:bg-sky-900/20 hover:bg-sky-100 dark:hover:bg-sky-900/30 border-sky-100 dark:border-sky-800 text-sky-700 dark:text-sky-400'}`}
+                   className={`py-3 px-4 rounded-2xl text-sm font-black transition-all flex justify-between items-center active:scale-95 shadow-sm ${dailySnotCount >= 2 ? 'bg-sky-500 text-white shadow-sky-200 dark:shadow-none' : 'bg-sky-50 dark:bg-sky-900/30 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300'}`}
                >
-                   <span className="border-b border-sky-200/50 dark:border-sky-800 pb-0.5 mb-0.5 w-16 text-center">清鼻涕</span>
-                   <span className="text-[10px]">{dailySnotCount} / 2</span>
+                   <span className="flex items-center space-x-1.5">
+                       <span className="text-lg">🤧</span>
+                       <span>清鼻涕</span>
+                   </span>
+                   <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${dailySnotCount >= 2 ? 'bg-white/20 text-white' : 'bg-sky-200/50 dark:bg-sky-800 text-sky-800 dark:text-sky-200'}`}>
+                       {dailySnotCount} / 2
+                   </span>
                </button>
                <button
                    onClick={async () => {
@@ -762,10 +765,15 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                        };
                        await setDoc(doc(db, 'logs', newLog.id), newLog);
                    }}
-                   className={`border py-2 rounded-xl text-xs font-bold transition-colors flex flex-col items-center ${dailyMouthCount >= 1 ? 'bg-teal-500 text-white border-teal-500 shadow-sm' : 'bg-teal-50 dark:bg-teal-900/20 hover:bg-teal-100 dark:hover:bg-teal-900/30 border-teal-100 dark:border-teal-800 text-teal-700 dark:text-teal-400'}`}
+                   className={`py-3 px-4 rounded-2xl text-sm font-black transition-all flex justify-between items-center active:scale-95 shadow-sm ${dailyMouthCount >= 1 ? 'bg-teal-500 text-white shadow-teal-200 dark:shadow-none' : 'bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300'}`}
                >
-                   <span className="border-b border-teal-200/50 dark:border-teal-800 pb-0.5 mb-0.5 w-16 text-center">清潔口腔</span>
-                   <span className="text-[10px]">{dailyMouthCount} / 1</span>
+                   <span className="flex items-center space-x-1.5">
+                       <span className="text-lg">🦷</span>
+                       <span>清潔口腔</span>
+                   </span>
+                   <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${dailyMouthCount >= 1 ? 'bg-white/20 text-white' : 'bg-teal-200/50 dark:bg-teal-800 text-teal-800 dark:text-teal-200'}`}>
+                       {dailyMouthCount} / 1
+                   </span>
                </button>
             </div>
          </div>
@@ -786,35 +794,9 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                            };
                            await setDoc(doc(db, 'logs', newLog.id), newLog);
                        }}
-                       className="bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 py-2 rounded-xl text-xs font-bold capitalize transition-colors"
+                       className="bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 py-3.5 rounded-2xl text-[13px] font-black tracking-wide capitalize transition-all active:scale-95 shadow-sm flex justify-center items-center space-x-1"
                    >
-                       {type === 'wet' ? '濕' : (type === 'dirty' ? '髒' : '混合')}
-                   </button>
-               ))}
-            </div>
-         </div>
-
-         {/* Quick Add Colic */}
-         <div>
-            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-wider">快速 Colic</p>
-            <div className="grid grid-cols-3 gap-2">
-               {[15, 30, 60].map((mins) => (
-                   <button
-                       key={mins}
-                       onClick={async () => {
-                           const newLog: LogEntry = {
-                               id: generateId(),
-                               type: 'colic',
-                               startTime: Date.now() - (mins * 60 * 1000),
-                               endTime: Date.now(),
-                               durationSeconds: mins * 60,
-                               details: {}
-                           };
-                           await setDoc(doc(db, 'logs', newLog.id), newLog);
-                       }}
-                       className="bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 border border-rose-100 dark:border-rose-800 text-rose-700 dark:text-rose-400 py-2 rounded-xl text-xs font-bold transition-colors"
-                   >
-                       記錄 {mins === 60 ? '1小時' : `${mins}分鐘`}
+                       <span>{type === 'wet' ? '💧 濕' : (type === 'dirty' ? '💩 髒' : '✨ 混合')}</span>
                    </button>
                ))}
             </div>
