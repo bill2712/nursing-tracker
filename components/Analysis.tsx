@@ -57,12 +57,16 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
     // Colic Count
     const colicCount = logsInDay.filter(l => l.type === 'colic').length;
 
+    // Feeding Count
+    const feedingCount = logsInDay.filter(l => l.type === 'feeding').length;
+
     return {
       date: format(day, 'EEE'), // Mon, Tue...
       fullDate: format(day, 'MMM d'),
       sleepHours: parseFloat((dailySleepSeconds / 3600).toFixed(1)),
       sleepSeconds: dailySleepSeconds,
       feedingMl: dailyFeedingMl,
+      feedingCount: feedingCount,
       wetDiapers: wet,
       dirtyDiapers: dirty,
       colicCount: colicCount
@@ -93,7 +97,22 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
           <p className="text-sm font-bold text-pink-600 dark:text-pink-400">
-            總共: {data.feedingMl}ml
+            總量: {data.feedingMl}ml
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const FeedingCountTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
+          <p className="text-sm font-bold text-fuchsia-600 dark:text-fuchsia-400">
+            餵奶次數: {data.feedingCount}次
           </p>
         </div>
       );
@@ -164,6 +183,24 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
                 activeDot={{ r: 6 }}
               />
             </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Feeding Count Chart */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">餵奶次數趨勢 (過去10天)</h3>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
+              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} allowDecimals={false} />
+              <Tooltip content={<FeedingCountTooltip />} cursor={{fill: 'transparent'}} />
+              <Bar dataKey="feedingCount" radius={[6, 6, 0, 0]}>
+                {trendData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.feedingCount >= 8 ? '#a855f7' : '#e879f9'} />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
 

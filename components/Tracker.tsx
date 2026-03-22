@@ -91,6 +91,12 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
       .reduce((acc, curr) => acc + (curr.details.amountMl || 0), 0);
   }, [appState.logs]);
 
+  const dailyFeedingCount = useMemo(() => {
+    const now = Date.now();
+    const dayStart = startOfDay(now).getTime();
+    return appState.logs.filter(l => l.type === 'feeding' && l.startTime >= dayStart).length;
+  }, [appState.logs]);
+
   const dailyDiaperCounts = useMemo(() => {
     const now = Date.now();
     const dayStart = startOfDay(now).getTime();
@@ -648,7 +654,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                {lastActivities.feeding?.details?.amountMl ? `${lastActivities.feeding.details.amountMl}ml` : ' '}
              </span>
              <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate">
-               今日 {dailyFeedingVolume}ml
+               今日 {dailyFeedingCount}次 / {dailyFeedingVolume}ml
              </span>
            </div>
         </div>
