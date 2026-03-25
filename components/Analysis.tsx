@@ -16,6 +16,27 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
   const today = new Date();
 
+  // Recommended daily feeding volume from growth plan (MM/DD -> ml)
+  const babyGrowthPlan: Record<string, number> = {
+    '02/20': 483, '02/21': 484, '02/22': 484, '02/23': 484, '02/24': 484,
+    '02/25': 485, '02/26': 485, '02/27': 485, '02/28': 508, '03/01': 530,
+    '03/02': 553, '03/03': 559, '03/04': 565, '03/05': 571, '03/06': 578,
+    '03/07': 584, '03/08': 590, '03/09': 596, '03/10': 603, '03/11': 609,
+    '03/12': 615, '03/13': 621, '03/14': 628, '03/15': 634, '03/16': 640,
+    '03/17': 646, '03/18': 652, '03/19': 659, '03/20': 665, '03/21': 671,
+    '03/22': 677, '03/23': 682, '03/24': 688, '03/25': 694, '03/26': 700,
+    '03/27': 705, '03/28': 711, '03/29': 717, '03/30': 723, '03/31': 728,
+    '04/01': 734, '04/02': 740, '04/03': 746, '04/04': 752, '04/05': 757,
+    '04/06': 763, '04/07': 769, '04/08': 775, '04/09': 780, '04/10': 786,
+    '04/11': 792, '04/12': 798, '04/13': 804, '04/14': 809, '04/15': 815,
+    '04/16': 821, '04/17': 827, '04/18': 831, '04/19': 836, '04/20': 841,
+    '04/21': 845, '04/22': 850, '04/23': 854, '04/24': 859, '04/25': 864,
+    '04/26': 868, '04/27': 873, '04/28': 877, '04/29': 882, '04/30': 887,
+    '05/01': 891, '05/02': 896, '05/03': 901, '05/04': 905, '05/05': 910,
+    '05/06': 914, '05/07': 919, '05/08': 924, '05/09': 928, '05/10': 933,
+    '05/11': 938, '05/12': 942, '05/13': 947, '05/14': 951, '05/15': 956,
+  };
+
   const handleGetInsight = async () => {
     setLoading(true);
     const text = await getGeminiInsights(appState.logs);
@@ -60,6 +81,11 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
     // Feeding Count
     const feedingCount = logsInDay.filter(l => l.type === 'feeding').length;
 
+    // Recommended ml from growth plan (key: MM/DD)
+    const mmdd = format(day, 'MM/dd').replace('-', '/');
+    // format returns MM/dd, need MM/DD (uppercase has no effect on numbers), key matches
+    const recommendedMl = babyGrowthPlan[format(day, 'MM/dd')] ?? null;
+
     return {
       date: format(day, 'EEE'), // Mon, Tue...
       fullDate: format(day, 'MMM d'),
@@ -67,6 +93,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       sleepSeconds: dailySleepSeconds,
       feedingMl: dailyFeedingMl,
       feedingCount: feedingCount,
+      recommendedMl: recommendedMl,
       wetDiapers: wet,
       dirtyDiapers: dirty,
       colicCount: colicCount
@@ -97,8 +124,18 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
           <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
           <p className="text-sm font-bold text-pink-600 dark:text-pink-400">
-            總量: {data.feedingMl}ml
+            實際: {data.feedingMl}ml
           </p>
+          {data.recommendedMl !== null && (
+            <p className="text-sm font-bold text-amber-500 dark:text-amber-400">
+              建議: {data.recommendedMl}ml
+            </p>
+          )}
+          {data.recommendedMl !== null && (
+            <p className={`text-xs font-semibold mt-1 ${data.feedingMl >= data.recommendedMl ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {data.feedingMl >= data.recommendedMl ? `超達 +${data.feedingMl - data.recommendedMl}ml ✅` : `尚缺 ${data.recommendedMl - data.feedingMl}ml`}
+            </p>
+          )}
         </div>
       );
     }
@@ -159,8 +196,18 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
         {/* Feeding Trend Chart */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">餵奶奶量趨勢 (過去10天)</h3>
-          <ResponsiveContainer width="100%" height="100%">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">餵奶奶量趨勢 (過去10天)</h3>
+          <div className="flex items-center space-x-4 mb-3">
+            <span className="flex items-center space-x-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="inline-block w-6 h-0.5 bg-pink-400 rounded"></span>
+              <span>實際奶量</span>
+            </span>
+            <span className="flex items-center space-x-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="inline-block w-6 border-t-2 border-dashed border-amber-400"></span>
+              <span>建議奴量</span>
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height="84%">
             <AreaChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <defs>
                 <linearGradient id="colorFeed" x1="0" y1="0" x2="0" y2="1">
@@ -175,12 +222,24 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
               <Area 
                 type="monotone" 
                 dataKey="feedingMl" 
+                name="實際奶量"
                 stroke="#ec4899" 
                 fillOpacity={1}
                 fill="url(#colorFeed)"
                 strokeWidth={3}
                 dot={{ fill: '#ec4899', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
                 activeDot={{ r: 6 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="recommendedMl"
+                name="建議奴量"
+                stroke="#f59e0b"
+                strokeWidth={2}
+                strokeDasharray="6 3"
+                dot={false}
+                activeDot={{ r: 5, fill: '#f59e0b' }}
+                connectNulls
               />
             </AreaChart>
           </ResponsiveContainer>
