@@ -195,7 +195,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Feeding Trend Chart */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
           <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">餵奶奶量趨勢 (過去10天)</h3>
           <div className="flex items-center space-x-4 mb-3">
             <span className="flex items-center space-x-1.5 text-[11px] text-slate-500 dark:text-slate-400">
@@ -204,45 +204,75 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
             </span>
             <span className="flex items-center space-x-1.5 text-[11px] text-slate-500 dark:text-slate-400">
               <span className="inline-block w-6 border-t-2 border-dashed border-amber-400"></span>
-              <span>建議奴量</span>
+              <span>建議奶量</span>
             </span>
           </div>
-          <ResponsiveContainer width="100%" height="84%">
-            <AreaChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-              <defs>
-                <linearGradient id="colorFeed" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-              <Tooltip content={<FeedingTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
-              <Area 
-                type="monotone" 
-                dataKey="feedingMl" 
-                name="實際奶量"
-                stroke="#ec4899" 
-                fillOpacity={1}
-                fill="url(#colorFeed)"
-                strokeWidth={3}
-                dot={{ fill: '#ec4899', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
-                activeDot={{ r: 6 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="recommendedMl"
-                name="建議奴量"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                strokeDasharray="6 3"
-                dot={false}
-                activeDot={{ r: 5, fill: '#f59e0b' }}
-                connectNulls
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div style={{height: 220}}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+                <defs>
+                  <linearGradient id="colorFeed" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
+                <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+                <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
+                <Tooltip content={<FeedingTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                <Area 
+                  type="monotone" 
+                  dataKey="feedingMl" 
+                  name="實際奶量"
+                  stroke="#ec4899" 
+                  fillOpacity={1}
+                  fill="url(#colorFeed)"
+                  strokeWidth={3}
+                  dot={{ fill: '#ec4899', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="recommendedMl"
+                  name="建議奶量"
+                  stroke="#f59e0b"
+                  strokeWidth={2}
+                  strokeDasharray="6 3"
+                  dot={false}
+                  activeDot={{ r: 5, fill: '#f59e0b' }}
+                  connectNulls
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Per-day summary */}
+          <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-3">
+            <div className="grid grid-cols-5 gap-1 text-center text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-2 px-1">
+              <span>日期</span>
+              <span>實際</span>
+              <span>建議</span>
+              <span>差距</span>
+              <span>狀態</span>
+            </div>
+            <div className="space-y-1">
+              {trendData.map((d, i) => {
+                const diff = d.recommendedMl !== null ? d.feedingMl - d.recommendedMl : null;
+                return (
+                  <div key={i} className="grid grid-cols-5 gap-1 text-center text-[11px] px-1 py-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <span className="font-bold text-slate-600 dark:text-slate-300">{d.date}</span>
+                    <span className="font-black text-pink-600 dark:text-pink-400">{d.feedingMl > 0 ? `${d.feedingMl}` : <span className="text-slate-300">--</span>}</span>
+                    <span className="font-semibold text-amber-500">{d.recommendedMl !== null ? d.recommendedMl : <span className="text-slate-300">--</span>}</span>
+                    <span className={`font-bold ${
+                      diff === null ? 'text-slate-300' :
+                      diff >= 0 ? 'text-emerald-500' : 'text-rose-500'
+                    }`}>{diff === null ? '--' : diff >= 0 ? `+${diff}` : `${diff}`}</span>
+                    <span>{diff === null ? '' : diff >= 0 ? '✅' : '⚠️'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Feeding Count Chart */}
