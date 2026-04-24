@@ -107,10 +107,20 @@ const App: React.FC = () => {
     const unsubShared = onSnapshot(sharedRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
+        const mergedVaccines = INITIAL_VACCINES.map(v => {
+            const saved = data.health?.vaccines?.find((sv: any) => sv.id === v.id);
+            return { ...v, completed: saved?.completed || false, date: saved?.date, notes: saved?.notes };
+        });
+
+        const mergedMilestones = INITIAL_MILESTONES.map(m => {
+            const saved = data.health?.milestones?.find((sm: any) => sm.id === m.id);
+            return { ...m, completed: saved?.completed || false, date: saved?.date };
+        });
+
         setAppState(prev => ({
           ...prev,
           growth: data.growth || prev.growth,
-          health: data.health || prev.health,
+          health: { vaccines: mergedVaccines, milestones: mergedMilestones },
           completedChecklistItems: data.completedChecklistItems || prev.completedChecklistItems
         }));
       }
