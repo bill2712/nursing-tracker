@@ -14,11 +14,11 @@ import { INITIAL_VACCINES, INITIAL_MILESTONES } from './data/healthData';
 type View = 'tracker' | 'history' | 'analysis' | 'checklist' | 'settings' | 'health';
 
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, doc, setDoc, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, setDoc, limit, getDoc } from 'firebase/firestore';
 import { auth, db } from './services/firebase';
 import Login from './components/Login';
 
-const ALERT_emails = ["bill27122002@gmail.com", "suet0806@gmail.com", "pingwai03@gmail.com", "elsie.li612@gmail.com"];
+const ALERT_emails = ["bill27122002@gmail.com", "suet0806@gmail.com"];
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -79,17 +79,47 @@ const App: React.FC = () => {
     });
 
     // 2. Listen to Active Timer (Global Singleton)
-    const unsubTimer = onSnapshot(doc(db, 'system', 'activeTimer'), (doc) => {
-      if (doc.exists()) {
-        setAppState(prev => ({ ...prev, activeTimer: doc.data() as any }));
+    const unsubTimer = onSnapshot(doc(db, 'system', 'activeTimer'), (docSnap) => {
+      if (docSnap.exists()) {
+        setAppState(prev => ({ ...prev, activeTimer: docSnap.data() as any }));
       } else {
         setAppState(prev => ({ ...prev, activeTimer: null }));
+      }
+    });
+
+    // 3. Listen to Shared State (Growth, Health, Checklist)
+    const sharedRef = doc(db, 'system', 'sharedState');
+    const initSharedState = async () => {
+      const docSnap = await getDoc(sharedRef);
+      if (!docSnap.exists()) {
+        await setDoc(sharedRef, {
+          growth: [],
+          health: {
+            vaccines: INITIAL_VACCINES.map(v => ({ ...v, completed: false })),
+            milestones: INITIAL_MILESTONES.map(m => ({ ...m, completed: false }))
+          },
+          completedChecklistItems: []
+        });
+      }
+    };
+    initSharedState();
+
+    const unsubShared = onSnapshot(sharedRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setAppState(prev => ({
+          ...prev,
+          growth: data.growth || prev.growth,
+          health: data.health || prev.health,
+          completedChecklistItems: data.completedChecklistItems || prev.completedChecklistItems
+        }));
       }
     });
 
     return () => {
       unsubLogs();
       unsubTimer();
+      unsubShared();
     };
   }, [user]);
 

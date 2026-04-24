@@ -5,6 +5,8 @@ import { RulerIcon, TrashIcon, PencilIcon } from './Icons';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceArea, ReferenceLine } from 'recharts';
 import { WHO_STANDARDS } from './WHOStandards';
 import { format } from 'date-fns';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface GrowthProps {
   appState: AppState;
@@ -84,7 +86,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
     setIsAdding(true);
   };
 
-  const saveEntry = () => {
+  const saveEntry = async () => {
     if (!date) return;
 
     // Parse inputs based on current unit settings
@@ -107,26 +109,23 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
         notes: notes.trim() || undefined
     };
 
-    setAppState(prev => {
-        const existing = prev.growth || [];
-        let updated;
-        if (editingId) {
-            updated = existing.map(g => g.id === editingId ? newEntry : g);
-        } else {
-            updated = [...existing, newEntry];
-        }
-        return { ...prev, growth: updated };
-    });
+    const existing = appState.growth || [];
+    let updated;
+    if (editingId) {
+        updated = existing.map(g => g.id === editingId ? newEntry : g);
+    } else {
+        updated = [...existing, newEntry];
+    }
+    
+    await setDoc(doc(db, 'system', 'sharedState'), { growth: updated }, { merge: true });
 
     setIsAdding(false);
   };
 
-  const deleteEntry = (id: string) => {
+  const deleteEntry = async (id: string) => {
     if (confirm("確定要刪除此成長紀錄？")) {
-        setAppState(prev => ({
-            ...prev,
-            growth: prev.growth.filter(g => g.id !== id)
-        }));
+        const updated = appState.growth.filter(g => g.id !== id);
+        await setDoc(doc(db, 'system', 'sharedState'), { growth: updated }, { merge: true });
     }
   };
 

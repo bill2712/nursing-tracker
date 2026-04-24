@@ -1,19 +1,18 @@
 import { Vaccine, Milestone } from '../types';
 
 export const INITIAL_VACCINES: Omit<Vaccine, 'completed' | 'date' | 'notes'>[] = [
-  { id: 'v1', name: '乙型肝炎疫苗 (第一劑)', ageMonths: 0 },
-  { id: 'v2', name: '卡介苗', ageMonths: 0 },
-  { id: 'v3', name: '乙型肝炎疫苗 (第二劑)', ageMonths: 1 },
-  { id: 'v4', name: '五合一疫苗 (第一劑): 白喉、破傷風、百日咳、小兒麻痺、乙型流感嗜血桿菌', ageMonths: 2 },
-  { id: 'v5', name: '肺炎球菌疫苗 (第一劑)', ageMonths: 2 },
-  { id: 'v6', name: '五合一疫苗 (第二劑)', ageMonths: 4 },
-  { id: 'v7', name: '肺炎球菌疫苗 (第二劑)', ageMonths: 4 },
-  { id: 'v8', name: '乙型肝炎疫苗 (第三劑)', ageMonths: 6 },
-  { id: 'v9', name: '五合一疫苗 (第三劑)', ageMonths: 6 },
-  { id: 'v10', name: '麻疹、流行性腮腺炎、德國麻疹及水痘混合疫苗 (第一劑)', ageMonths: 12 },
-  { id: 'v11', name: '肺炎球菌疫苗 (加強劑)', ageMonths: 12 },
-  { id: 'v12', name: '五合一疫苗 (加強劑)', ageMonths: 18 },
-  { id: 'v13', name: '麻疹、流行性腮腺炎、德國麻疹及水痘混合疫苗 (第二劑)', ageMonths: 18 },
+  { id: 'v1', name: '白喉、破傷風、百日咳、小兒麻痺、乙型流感嗜血桿菌及乙型肝炎混合疫苗 (DTaP-HB-IPV-Hib)', ageMonths: 2 },
+  { id: 'v2', name: '肺炎球菌結合疫苗 (PCV13)', ageMonths: 2 },
+  { id: 'v3', name: '輪狀病毒疫苗 (Rotavirus)', ageMonths: 2 },
+  { id: 'v4', name: '白喉、破傷風、百日咳、小兒麻痺、乙型流感嗜血桿菌及乙型肝炎混合疫苗 (DTaP-HB-IPV-Hib)', ageMonths: 4 },
+  { id: 'v5', name: '肺炎球菌結合疫苗 (PCV13)', ageMonths: 4 },
+  { id: 'v6', name: '輪狀病毒疫苗 (Rotavirus)', ageMonths: 4 },
+  { id: 'v7', name: '白喉、破傷風、百日咳、小兒麻痺、乙型流感嗜血桿菌及乙型肝炎混合疫苗 (DTaP-HB-IPV-Hib)', ageMonths: 6 },
+  { id: 'v8', name: '輪狀病毒疫苗 (Rotavirus)', ageMonths: 6 },
+  { id: 'v9', name: '麻疹、流行性腮腺炎、德國麻疹及水痘混合疫苗 (MMRV)', ageMonths: 12 },
+  { id: 'v10', name: '肺炎球菌結合疫苗 (PCV13)', ageMonths: 12 },
+  { id: 'v11', name: '腦膜炎雙球菌C型結合疫苗 (Men-C)', ageMonths: 12 },
+  { id: 'v12', name: '白喉、破傷風、百日咳、小兒麻痺及乙型流感嗜血桿菌混合疫苗 (DTaP-IPV-Hib)', ageMonths: 18 },
 ];
 
 export const INITIAL_MILESTONES: Omit<Milestone, 'completed' | 'date'>[] = [

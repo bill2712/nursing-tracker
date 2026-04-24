@@ -3,6 +3,8 @@ import { AppState, Vaccine, Milestone } from '../types';
 import { format } from 'date-fns';
 import { CheckIcon } from './Icons';
 import Growth from './Growth';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface HealthProps {
   appState: AppState;
@@ -14,58 +16,38 @@ const Health: React.FC<HealthProps> = ({ appState, setAppState }) => {
 
   const profile = appState.babyProfile;
 
-  const toggleVaccine = (id: string) => {
-    setAppState(prev => ({
-      ...prev,
-      health: {
-        ...prev.health,
-        vaccines: prev.health.vaccines.map(v => 
-          v.id === id 
-            ? { ...v, completed: !v.completed, date: !v.completed ? Date.now() : undefined } 
-            : v
-        )
-      }
-    }));
+  const toggleVaccine = async (id: string) => {
+    const updated = appState.health.vaccines.map(v => 
+      v.id === id 
+        ? { ...v, completed: !v.completed, date: !v.completed ? Date.now() : undefined } 
+        : v
+    );
+    await setDoc(doc(db, 'system', 'sharedState'), { health: { ...appState.health, vaccines: updated } }, { merge: true });
   };
 
-  const updateVaccineDate = (id: string, dateStr: string) => {
+  const updateVaccineDate = async (id: string, dateStr: string) => {
     const timestamp = new Date(dateStr).getTime();
-    setAppState(prev => ({
-      ...prev,
-      health: {
-        ...prev.health,
-        vaccines: prev.health.vaccines.map(v => 
-          v.id === id ? { ...v, date: timestamp } : v
-        )
-      }
-    }));
+    const updated = appState.health.vaccines.map(v => 
+      v.id === id ? { ...v, date: timestamp } : v
+    );
+    await setDoc(doc(db, 'system', 'sharedState'), { health: { ...appState.health, vaccines: updated } }, { merge: true });
   };
 
-  const toggleMilestone = (id: string) => {
-    setAppState(prev => ({
-      ...prev,
-      health: {
-        ...prev.health,
-        milestones: prev.health.milestones.map(m => 
-          m.id === id 
-            ? { ...m, completed: !m.completed, date: !m.completed ? Date.now() : undefined } 
-            : m
-        )
-      }
-    }));
+  const toggleMilestone = async (id: string) => {
+    const updated = appState.health.milestones.map(m => 
+      m.id === id 
+        ? { ...m, completed: !m.completed, date: !m.completed ? Date.now() : undefined } 
+        : m
+    );
+    await setDoc(doc(db, 'system', 'sharedState'), { health: { ...appState.health, milestones: updated } }, { merge: true });
   };
 
-  const updateMilestoneDate = (id: string, dateStr: string) => {
+  const updateMilestoneDate = async (id: string, dateStr: string) => {
     const timestamp = new Date(dateStr).getTime();
-    setAppState(prev => ({
-      ...prev,
-      health: {
-        ...prev.health,
-        milestones: prev.health.milestones.map(m => 
-          m.id === id ? { ...m, date: timestamp } : m
-        )
-      }
-    }));
+    const updated = appState.health.milestones.map(m => 
+      m.id === id ? { ...m, date: timestamp } : m
+    );
+    await setDoc(doc(db, 'system', 'sharedState'), { health: { ...appState.health, milestones: updated } }, { merge: true });
   };
 
   if (activeTab === 'growth') {

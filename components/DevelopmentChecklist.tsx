@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { AppState } from '../types';
 import { DEVELOPMENT_DATA } from '../data/developmentData';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface DevelopmentChecklistProps {
   appState: AppState;
@@ -12,18 +14,13 @@ const DevelopmentChecklist: React.FC<DevelopmentChecklistProps> = ({ appState, s
 
   const completedItems = appState.completedChecklistItems || [];
 
-  const handleToggle = (id: string) => {
-    setAppState(prev => {
-      const currentCompleted = prev.completedChecklistItems || [];
-      const newCompleted = currentCompleted.includes(id)
-        ? currentCompleted.filter(itemId => itemId !== id)
-        : [...currentCompleted, id];
-        
-      return {
-        ...prev,
-        completedChecklistItems: newCompleted
-      };
-    });
+  const handleToggle = async (id: string) => {
+    const currentCompleted = appState.completedChecklistItems || [];
+    const newCompleted = currentCompleted.includes(id)
+      ? currentCompleted.filter(itemId => itemId !== id)
+      : [...currentCompleted, id];
+      
+    await setDoc(doc(db, 'system', 'sharedState'), { completedChecklistItems: newCompleted }, { merge: true });
   };
 
   const currentData = useMemo(() => {
