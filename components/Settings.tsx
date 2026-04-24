@@ -136,10 +136,20 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
     await setDoc(doc(db, 'system', 'sharedState'), { sleepGoal: newSleepGoal }, { merge: true });
   };
 
-  const updateBabyProfile = async (updates: Partial<typeof appState.babyProfile>) => {
-    const newProfile = { ...appState.babyProfile, ...updates };
-    setAppState(prev => ({ ...prev, babyProfile: newProfile }));
-    await setDoc(doc(db, 'system', 'sharedState'), { babyProfile: newProfile }, { merge: true });
+  const [localProfile, setLocalProfile] = useState(appState.babyProfile);
+  React.useEffect(() => {
+      setLocalProfile(appState.babyProfile);
+  }, [appState.babyProfile]);
+
+  const handleSaveProfile = async () => {
+      try {
+          setAppState(prev => ({ ...prev, babyProfile: localProfile }));
+          await setDoc(doc(db, 'system', 'sharedState'), { babyProfile: localProfile }, { merge: true });
+          alert("寶寶資料已成功儲存並同步！");
+      } catch (err) {
+          console.error(err);
+          alert("儲存失敗，請檢查網路連線。");
+      }
   };
 
   return (
@@ -159,15 +169,24 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
 
       {/* Baby Profile */}
       <section className="space-y-4">
-        <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">寶寶設定</h3>
+        <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">寶寶設定</h3>
+            <button 
+                onClick={handleSaveProfile}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-full text-xs font-bold transition-colors shadow-sm"
+            >
+                儲存設定
+            </button>
+        </div>
+        
         <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 space-y-4">
            
            <div className="space-y-2">
              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">名字</label>
              <input 
                 type="text"
-                value={appState.babyProfile.name}
-                onChange={(e) => updateBabyProfile({ name: e.target.value })}
+                value={localProfile.name}
+                onChange={(e) => setLocalProfile(prev => ({ ...prev, name: e.target.value }))}
                 className="w-full p-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
              />
            </div>
@@ -176,11 +195,11 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">出生日期</label>
              <input 
                 type="date"
-                value={format(new Date(appState.babyProfile.birthDate), 'yyyy-MM-dd')}
+                value={format(new Date(localProfile.birthDate), 'yyyy-MM-dd')}
                 onChange={(e) => {
                     if (!e.target.value) return;
                     const localTs = new Date(`${e.target.value}T00:00:00`).getTime();
-                    updateBabyProfile({ birthDate: localTs });
+                    setLocalProfile(prev => ({ ...prev, birthDate: localTs }));
                 }}
                 className="w-full p-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
              />
@@ -190,14 +209,14 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">性別 (WHO 生長曲線標準)</label>
              <div className="flex gap-2">
                  <button 
-                    onClick={() => updateBabyProfile({ gender: 'boy' })}
-                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${appState.babyProfile.gender === 'boy' ? 'bg-blue-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
+                    onClick={() => setLocalProfile(prev => ({ ...prev, gender: 'boy' }))}
+                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${localProfile.gender === 'boy' ? 'bg-blue-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
                  >
                     男寶寶
                  </button>
                  <button 
-                    onClick={() => updateBabyProfile({ gender: 'girl' })}
-                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${appState.babyProfile.gender === 'girl' ? 'bg-pink-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
+                    onClick={() => setLocalProfile(prev => ({ ...prev, gender: 'girl' }))}
+                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${localProfile.gender === 'girl' ? 'bg-pink-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
                  >
                     女寶寶
                  </button>
