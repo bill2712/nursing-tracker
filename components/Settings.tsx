@@ -130,11 +130,16 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
     }));
   };
 
-  const updateSleepGoal = (field: 'hours' | 'minutes', value: number) => {
-    setAppState(prev => ({
-      ...prev,
-      sleepGoal: { ...prev.sleepGoal, [field]: value }
-    }));
+  const updateSleepGoal = async (field: 'hours' | 'minutes', value: number) => {
+    const newSleepGoal = { ...appState.sleepGoal, [field]: value };
+    setAppState(prev => ({ ...prev, sleepGoal: newSleepGoal }));
+    await setDoc(doc(db, 'system', 'sharedState'), { sleepGoal: newSleepGoal }, { merge: true });
+  };
+
+  const updateBabyProfile = async (updates: Partial<typeof appState.babyProfile>) => {
+    const newProfile = { ...appState.babyProfile, ...updates };
+    setAppState(prev => ({ ...prev, babyProfile: newProfile }));
+    await setDoc(doc(db, 'system', 'sharedState'), { babyProfile: newProfile }, { merge: true });
   };
 
   return (
@@ -162,7 +167,7 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
              <input 
                 type="text"
                 value={appState.babyProfile.name}
-                onChange={(e) => setAppState(prev => ({ ...prev, babyProfile: { ...prev.babyProfile, name: e.target.value } }))}
+                onChange={(e) => updateBabyProfile({ name: e.target.value })}
                 className="w-full p-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
              />
            </div>
@@ -175,7 +180,7 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
                 onChange={(e) => {
                     if (!e.target.value) return;
                     const localTs = new Date(`${e.target.value}T00:00:00`).getTime();
-                    setAppState(prev => ({ ...prev, babyProfile: { ...prev.babyProfile, birthDate: localTs } }));
+                    updateBabyProfile({ birthDate: localTs });
                 }}
                 className="w-full p-2 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
              />
@@ -185,13 +190,13 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">性別 (WHO 生長曲線標準)</label>
              <div className="flex gap-2">
                  <button 
-                    onClick={() => setAppState(prev => ({ ...prev, babyProfile: { ...prev.babyProfile, gender: 'boy' } }))}
+                    onClick={() => updateBabyProfile({ gender: 'boy' })}
                     className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${appState.babyProfile.gender === 'boy' ? 'bg-blue-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
                  >
                     男寶寶
                  </button>
                  <button 
-                    onClick={() => setAppState(prev => ({ ...prev, babyProfile: { ...prev.babyProfile, gender: 'girl' } }))}
+                    onClick={() => updateBabyProfile({ gender: 'girl' })}
                     className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${appState.babyProfile.gender === 'girl' ? 'bg-pink-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'}`}
                  >
                     女寶寶

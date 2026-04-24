@@ -46,6 +46,29 @@ const App: React.FC = () => {
     completedChecklistItems: []
   });
 
+  // Load purely local settings (dark mode, reminders) on mount
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem('nurturetrack-local-prefs');
+      if (stored) {
+        const prefs = JSON.parse(stored);
+        setAppState(prev => ({
+          ...prev,
+          ...(prefs.darkMode !== undefined ? { darkMode: prefs.darkMode } : {}),
+          ...(prefs.reminders ? { reminders: prefs.reminders } : {})
+        }));
+      }
+    } catch(e) {}
+  }, []);
+
+  // Save purely local settings whenever they change
+  useEffect(() => {
+    window.localStorage.setItem('nurturetrack-local-prefs', JSON.stringify({
+      darkMode: appState.darkMode,
+      reminders: appState.reminders
+    }));
+  }, [appState.darkMode, appState.reminders]);
+
   const [currentView, setCurrentView] = useState<View>('tracker');
 
   // Auth Listener
@@ -95,10 +118,12 @@ const App: React.FC = () => {
         await setDoc(sharedRef, {
           growth: [],
           health: {
-            vaccines: INITIAL_VACCINES.map(v => ({ ...v, completed: false })),
-            milestones: INITIAL_MILESTONES.map(m => ({ ...m, completed: false }))
+            vaccines: INITIAL_VACCINES.map(v => ({...v, completed: false})),
+            milestones: INITIAL_MILESTONES.map(m => ({...m, completed: false}))
           },
-          completedChecklistItems: []
+          completedChecklistItems: [],
+          babyProfile: appState.babyProfile,
+          sleepGoal: appState.sleepGoal
         });
       }
     };
@@ -126,7 +151,9 @@ const App: React.FC = () => {
           ...prev,
           growth: data.growth || prev.growth,
           health: { vaccines: mergedVaccines, milestones: mergedMilestones },
-          completedChecklistItems: data.completedChecklistItems || prev.completedChecklistItems
+          completedChecklistItems: data.completedChecklistItems || prev.completedChecklistItems,
+          babyProfile: data.babyProfile || prev.babyProfile,
+          sleepGoal: data.sleepGoal || prev.sleepGoal
         }));
       }
     });
