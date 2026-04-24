@@ -100,14 +100,14 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
         if (!isNaN(finalHead)) finalHead = inToCm(finalHead);
     }
 
-    const newEntry: GrowthEntry = {
+    const newEntry = {
         id: editingId || generateId(),
         date: new Date(date).getTime(),
-        weight: isNaN(finalWeight) ? undefined : finalWeight,
-        length: isNaN(finalLength) ? undefined : finalLength,
-        headCircumference: isNaN(finalHead) ? undefined : finalHead,
-        notes: notes.trim() || undefined
-    };
+    } as GrowthEntry;
+    if (!isNaN(finalWeight)) newEntry.weight = finalWeight;
+    if (!isNaN(finalLength)) newEntry.length = finalLength;
+    if (!isNaN(finalHead)) newEntry.headCircumference = finalHead;
+    if (notes.trim()) newEntry.notes = notes.trim();
 
     const existing = appState.growth || [];
     let updated;
