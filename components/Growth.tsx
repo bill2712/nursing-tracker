@@ -175,7 +175,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
     // Easier approach: Use XAxis type="number" dataKey="age".
     
     // Flatten WHO data for the range
-    const refLines = standardSource.filter(s => s.month <= maxAge).map(s => {
+    const refLines = standardSource.map(s => {
         let p3 = s.p3, p50 = s.p50, p97 = s.p97;
         
         if (activeTab === 'weight' && profile.weightUnit === 'lb') {
