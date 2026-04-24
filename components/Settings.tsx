@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { AppState, LogEntry } from '../types';
 import { exportToCSV, downloadFile } from '../utils';
 import { format } from 'date-fns';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface SettingsProps {
   appState: AppState;
