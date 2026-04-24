@@ -366,16 +366,22 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                       <div className="text-xs text-slate-400 mt-1">
                           年齡: {getAgeInMonths(profile.birthDate, entry.date).toFixed(1)}m
                       </div>
-                      {/* WHO Percentile below age */}
+                      {/* WHO Percentiles */}
                       {(() => {
                           const age = getAgeInMonths(profile.birthDate, entry.date);
-                          let val;
-                          if (activeTab === 'weight') val = entry.weight;
-                          else if (activeTab === 'length') val = entry.length;
-                          else val = entry.headCircumference;
-                          const p = getPercentileStr(age, val, activeTab);
-                          if (p) return <div className="text-xs text-indigo-500 font-bold mt-1 tracking-wider">WHO {p}</div>;
-                          return null;
+                          const pWeight = getPercentileStr(age, entry.weight, 'weight');
+                          const pLength = getPercentileStr(age, entry.length, 'length');
+                          const pHead = getPercentileStr(age, entry.headCircumference, 'head');
+                          
+                          if (!pWeight && !pLength && !pHead) return null;
+
+                          return (
+                              <div className="flex gap-2 mt-1.5">
+                                  {pWeight && <span className="text-[10px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold">體重: WHO {pWeight}</span>}
+                                  {pLength && <span className="text-[10px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold">身高: WHO {pLength}</span>}
+                                  {pHead && <span className="text-[10px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold">頭圍: WHO {pHead}</span>}
+                              </div>
+                          );
                       })()}
                   </div>
                   <div className="flex flex-col items-end text-sm">
