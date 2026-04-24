@@ -32,7 +32,8 @@ const Health: React.FC<HealthProps> = ({ appState, setAppState }) => {
   };
 
   const updateVaccineDate = async (id: string, dateStr: string) => {
-    const timestamp = new Date(dateStr).getTime();
+    if (!dateStr) return;
+    const timestamp = new Date(`${dateStr}T00:00:00`).getTime();
     const updated = appState.health.vaccines.map(v => 
       v.id === id ? { ...v, date: timestamp } : v
     );
@@ -55,7 +56,8 @@ const Health: React.FC<HealthProps> = ({ appState, setAppState }) => {
   };
 
   const updateMilestoneDate = async (id: string, dateStr: string) => {
-    const timestamp = new Date(dateStr).getTime();
+    if (!dateStr) return;
+    const timestamp = new Date(`${dateStr}T00:00:00`).getTime();
     const updated = appState.health.milestones.map(m => 
       m.id === id ? { ...m, date: timestamp } : m
     );
