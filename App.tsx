@@ -109,12 +109,17 @@ const App: React.FC = () => {
         const data = docSnap.data();
         const mergedVaccines = INITIAL_VACCINES.map(v => {
             const saved = data.health?.vaccines?.find((sv: any) => sv.id === v.id);
-            return { ...v, completed: saved?.completed || false, date: saved?.date, notes: saved?.notes };
+            const res: any = { ...v, completed: saved?.completed || false };
+            if (saved?.date) res.date = saved.date;
+            if (saved?.notes) res.notes = saved.notes;
+            return res;
         });
 
         const mergedMilestones = INITIAL_MILESTONES.map(m => {
             const saved = data.health?.milestones?.find((sm: any) => sm.id === m.id);
-            return { ...m, completed: saved?.completed || false, date: saved?.date };
+            const res: any = { ...m, completed: saved?.completed || false };
+            if (saved?.date) res.date = saved.date;
+            return res;
         });
 
         setAppState(prev => ({

@@ -17,11 +17,17 @@ const Health: React.FC<HealthProps> = ({ appState, setAppState }) => {
   const profile = appState.babyProfile;
 
   const toggleVaccine = async (id: string) => {
-    const updated = appState.health.vaccines.map(v => 
-      v.id === id 
-        ? { ...v, completed: !v.completed, date: !v.completed ? Date.now() : undefined } 
-        : v
-    );
+    const updated = appState.health.vaccines.map(v => {
+      if (v.id === id) {
+          if (!v.completed) {
+              return { ...v, completed: true, date: Date.now() };
+          } else {
+              const { date, ...rest } = v;
+              return { ...rest, completed: false } as Vaccine;
+          }
+      }
+      return v;
+    });
     await setDoc(doc(db, 'system', 'sharedState'), { health: { ...appState.health, vaccines: updated } }, { merge: true });
   };
 
@@ -34,11 +40,17 @@ const Health: React.FC<HealthProps> = ({ appState, setAppState }) => {
   };
 
   const toggleMilestone = async (id: string) => {
-    const updated = appState.health.milestones.map(m => 
-      m.id === id 
-        ? { ...m, completed: !m.completed, date: !m.completed ? Date.now() : undefined } 
-        : m
-    );
+    const updated = appState.health.milestones.map(m => {
+      if (m.id === id) {
+          if (!m.completed) {
+              return { ...m, completed: true, date: Date.now() };
+          } else {
+              const { date, ...rest } = m;
+              return { ...rest, completed: false } as Milestone;
+          }
+      }
+      return m;
+    });
     await setDoc(doc(db, 'system', 'sharedState'), { health: { ...appState.health, milestones: updated } }, { merge: true });
   };
 
