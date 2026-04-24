@@ -1,9 +1,10 @@
 import { Vaccine, Milestone } from '../types';
 
 export const INITIAL_VACCINES: Omit<Vaccine, 'completed' | 'date' | 'notes'>[] = [
-  { id: 'v1', name: '白喉、破傷風、百日咳、小兒麻痺、乙型流感嗜血桿菌及乙型肝炎混合疫苗 (DTaP-HB-IPV-Hib)', ageMonths: 2 },
-  { id: 'v2', name: '肺炎球菌結合疫苗 (PCV13)', ageMonths: 2 },
-  { id: 'v3', name: '輪狀病毒疫苗 (Rotavirus)', ageMonths: 2 },
+  { id: 'v1', name: '六合一疫苗 Infanrix Hexa (DTaP-HB-IPV-Hib)', ageMonths: 2 },
+  { id: 'v2', name: '肺炎球菌結合疫苗 Prevnar 20 (Pneumococcal-C)', ageMonths: 2 },
+  { id: 'v2_men', name: '腦膜炎雙球菌C型結合疫苗 Neisvac-C (Meningococcal-C)', ageMonths: 2 },
+  { id: 'v3', name: '輪狀病毒口服疫苗 Rotarix (Rotavirus)', ageMonths: 2 },
   { id: 'v4', name: '白喉、破傷風、百日咳、小兒麻痺、乙型流感嗜血桿菌及乙型肝炎混合疫苗 (DTaP-HB-IPV-Hib)', ageMonths: 4 },
   { id: 'v5', name: '肺炎球菌結合疫苗 (PCV13)', ageMonths: 4 },
   { id: 'v6', name: '輪狀病毒疫苗 (Rotavirus)', ageMonths: 4 },
