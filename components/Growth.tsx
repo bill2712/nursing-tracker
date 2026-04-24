@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AppState, GrowthEntry, BabyProfile } from '../types';
-import { generateId, kgToLb, lbToKg, cmToIn, inToCm, formatWeight, formatLength, getAgeInMonths } from '../utils';
+import { generateId, kgToLb, lbToKg, cmToIn, inToCm, formatWeight, formatLength, getAgeInMonths, calculatePercentile } from '../utils';
 import { RulerIcon, TrashIcon, PencilIcon } from './Icons';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceArea, ReferenceLine } from 'recharts';
 import { WHO_STANDARDS } from './WHOStandards';
@@ -146,13 +146,15 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
        if (!val) return null;
 
        // Convert for display on chart if needed
-       if (activeTab === 'weight' && profile.weightUnit === 'lb') val = kgToLb(val);
-       if ((activeTab === 'length' || activeTab === 'head') && profile.lengthUnit === 'in') val = cmToIn(val);
+       let displayVal = val;
+       if (activeTab === 'weight' && profile.weightUnit === 'lb') displayVal = kgToLb(val);
+       if ((activeTab === 'length' || activeTab === 'head') && profile.lengthUnit === 'in') displayVal = cmToIn(val);
 
        return {
            age: ageMonths,
            date: g.date,
-           value: val,
+           value: displayVal,
+           originalValue: val,
            details: g
        };
     }).filter(d => d !== null) as any[];
@@ -191,27 +193,55 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
     return { user: dataPoints, ref: refLines };
   }, [sortedGrowth, activeTab, profile, WHO_STANDARDS]);
 
+  const getPercentileStr = (age: number, value: number | undefined, tab: 'weight' | 'length' | 'head') => {
+      if (!value) return null;
+      const standards = WHO_STANDARDS;
+      const gender = profile.gender === 'boy' ? 'boys' : 'girls';
+      let source;
+      if (tab === 'weight') source = standards.weightForAge[gender];
+      else if (tab === 'length') source = standards.lengthForAge[gender];
+      else source = standards.headCircumferenceForAge[gender];
+      
+      let closest = source[0];
+      let minDiff = Math.abs(age - closest.month);
+      for (const s of source) {
+          const diff = Math.abs(age - s.month);
+          if (diff < minDiff) {
+              closest = s;
+              minDiff = diff;
+          }
+      }
+      
+      const p = calculatePercentile(value, closest.L, closest.M, closest.S);
+      if (p === null) return null;
+      return `${p.toFixed(1)}th`;
+  };
+
   const CustomTooltip = ({ active, payload, label }: any) => {
       if (active && payload && payload.length) {
           const p = payload[0].payload;
           if (p.isRef) {
               return (
-                 <div className="bg-white dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700 rounded text-xs">
-                     <p className="font-bold">Age: {p.age} months</p>
-                     <p className="text-emerald-500">97%: {p.p97.toFixed(1)}</p>
-                     <p className="text-blue-500">50%: {p.p50.toFixed(1)}</p>
-                     <p className="text-orange-500">3%: {p.p3.toFixed(1)}</p>
+                 <div className="bg-white dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700 rounded text-xs shadow-lg">
+                     <p className="font-bold">Age: {p.age.toFixed(2)} months</p>
+                     <p className="text-emerald-500">97%: {p.p97.toFixed(2)}</p>
+                     <p className="text-blue-500">50%: {p.p50.toFixed(2)}</p>
+                     <p className="text-orange-500">3%: {p.p3.toFixed(2)}</p>
                  </div>
               );
           }
+          
+          const percentile = getPercentileStr(p.age, p.originalValue, activeTab);
+          
           return (
-             <div className="bg-white dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700 rounded text-xs">
+             <div className="bg-white dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700 rounded text-xs shadow-lg">
                   <p className="font-bold">{format(new Date(p.date), 'PP')}</p>
                   <p>年齡: {p.age.toFixed(1)}m</p>
                   <p className="text-pink-500 font-bold text-sm">
                       {p.value.toFixed(2)} 
                       {activeTab === 'weight' ? profile.weightUnit : profile.lengthUnit}
                   </p>
+                  {percentile && <p className="text-indigo-500 font-bold mt-1">WHO {percentile}</p>}
              </div>
           );
       }
@@ -324,6 +354,17 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                       <div className="text-xs text-slate-400 mt-1">
                           年齡: {getAgeInMonths(profile.birthDate, entry.date).toFixed(1)}m
                       </div>
+                      {/* WHO Percentile below age */}
+                      {(() => {
+                          const age = getAgeInMonths(profile.birthDate, entry.date);
+                          let val;
+                          if (activeTab === 'weight') val = entry.weight;
+                          else if (activeTab === 'length') val = entry.length;
+                          else val = entry.headCircumference;
+                          const p = getPercentileStr(age, val, activeTab);
+                          if (p) return <div className="text-xs text-indigo-500 font-bold mt-1 tracking-wider">WHO {p}</div>;
+                          return null;
+                      })()}
                   </div>
                   <div className="flex flex-col items-end text-sm">
                       {activeTab === 'weight' && entry.weight && (

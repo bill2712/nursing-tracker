@@ -6,6 +6,9 @@ export interface WHODataPoint {
     p3: number;
     p50: number;
     p97: number;
+    L?: number;
+    M?: number;
+    S?: number;
 }
 
 export interface WHOStandards {
