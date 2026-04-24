@@ -176,7 +176,6 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
     // we ideally need a Scatter chart with connecting lines, but Recharts LineChart works if we format it right.
     // Easier approach: Use XAxis type="number" dataKey="age".
     
-    // Flatten WHO data for the range
     const refLines = standardSource.map(s => {
         let p3 = s.p3, p50 = s.p50, p97 = s.p97;
         
@@ -189,8 +188,16 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
 
         return { age: s.month, p3, p50, p97, isRef: true };
     });
+    
+    // Dynamic chart boundary
+    const maxUserAge = dataPoints.length > 0 ? Math.max(...dataPoints.map(d => d.age)) : 0;
+    let viewMaxAge = 6;
+    if (maxUserAge > 4) viewMaxAge = 12;
+    if (maxUserAge > 10) viewMaxAge = 24;
+    if (maxUserAge > 20) viewMaxAge = 36;
+    if (maxUserAge > 30) viewMaxAge = 60;
 
-    return { user: dataPoints, ref: refLines };
+    return { user: dataPoints, ref: refLines, viewMaxAge };
   }, [sortedGrowth, activeTab, profile, WHO_STANDARDS]);
 
   const getPercentileStr = (age: number, value: number | undefined, tab: 'weight' | 'length' | 'head') => {
@@ -295,28 +302,33 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
       </div>
 
       {/* Charts */}
-      <div className="bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-80 relative">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 h-[400px] relative">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
-             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+            <LineChart margin={{ top: 30, right: 20, bottom: 20, left: 0 }}>
+             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} />
              <XAxis 
                 type="number" 
                 dataKey="age" 
                 name="年齡 (月)" 
-                domain={[0, 'auto']} 
-                label={{ value: '年齡 (月)', position: 'bottom', fontSize: 10, fill: '#94a3b8' }}
-                tick={{fontSize: 10, fill: '#94a3b8'}}
+                domain={[0, chartData.viewMaxAge]} 
+                ticks={Array.from({length: chartData.viewMaxAge + 1}, (_, i) => i).filter(i => chartData.viewMaxAge <= 12 || i % (chartData.viewMaxAge <= 24 ? 2 : 6) === 0)}
+                label={{ value: '年齡 (月)', position: 'bottom', fontSize: 11, fill: '#64748b', fontWeight: 'bold' }}
+                tick={{fontSize: 11, fill: '#94a3b8', fontWeight: 500}}
+                axisLine={{ stroke: '#cbd5e1' }}
+                tickLine={false}
              />
              <YAxis 
-                domain={['auto', 'auto']} 
-                tick={{fontSize: 10, fill: '#94a3b8'}}
+                domain={['dataMin - 1', 'dataMax + 1']} 
+                tick={{fontSize: 11, fill: '#94a3b8', fontWeight: 500}}
+                axisLine={false}
+                tickLine={false}
              />
-             <Tooltip content={<CustomTooltip />} />
+             <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }} />
              
              {/* Reference Lines (WHO) */}
-             <Line data={chartData.ref} type="monotone" dataKey="p97" stroke="#10b981" strokeDasharray="3 3" dot={false} strokeWidth={1} name="97%" />
-             <Line data={chartData.ref} type="monotone" dataKey="p50" stroke="#3b82f6" strokeDasharray="3 3" dot={false} strokeWidth={1} name="50%" />
-             <Line data={chartData.ref} type="monotone" dataKey="p3" stroke="#f97316" strokeDasharray="3 3" dot={false} strokeWidth={1} name="3%" />
+             <Line data={chartData.ref} type="monotone" dataKey="p97" stroke="#10b981" strokeDasharray="4 4" dot={false} strokeWidth={2} strokeOpacity={0.4} name="97%" />
+             <Line data={chartData.ref} type="monotone" dataKey="p50" stroke="#3b82f6" strokeDasharray="4 4" dot={false} strokeWidth={2} strokeOpacity={0.4} name="50%" />
+             <Line data={chartData.ref} type="monotone" dataKey="p3" stroke="#f97316" strokeDasharray="4 4" dot={false} strokeWidth={2} strokeOpacity={0.4} name="3%" />
 
              {/* User Data */}
              <Line 
@@ -324,17 +336,17 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                 type="monotone" 
                 dataKey="value" 
                 stroke="#ec4899" 
-                strokeWidth={3}
-                dot={{ r: 4, strokeWidth: 2, fill: '#ffffff', stroke: '#ec4899' }}
-                activeDot={{ r: 6 }}
+                strokeWidth={3.5}
+                dot={{ r: 5, strokeWidth: 2, fill: '#ffffff', stroke: '#ec4899' }}
+                activeDot={{ r: 7, stroke: '#ec4899', strokeWidth: 2, fill: '#ffffff' }}
              />
             </LineChart>
           </ResponsiveContainer>
           
-          <div className="absolute top-2 right-4 flex flex-col text-[9px] text-slate-400 items-end">
-              <span className="text-emerald-500">--- 97th %</span>
-              <span className="text-blue-500">--- 50th %</span>
-              <span className="text-orange-500">--- 3rd %</span>
+          <div className="absolute top-4 right-6 flex flex-col items-end gap-1 font-bold">
+              <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded shadow-sm">97th Percentile</span>
+              <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded shadow-sm">50th Percentile</span>
+              <span className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded shadow-sm">3rd Percentile</span>
           </div>
       </div>
 
