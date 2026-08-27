@@ -159,6 +159,10 @@ export const getGrowthViewMaxAge = (maxUserAge: number): 6 | 12 | 24 | 36 | 60 =
   return 6;
 };
 
+export const getWhoDatasetKey = (gender: 'boy' | 'girl' | undefined): 'boys' | 'girls' => {
+  return gender === 'girl' ? 'girls' : 'boys';
+};
+
 // Error function approximation
 function erf(x: number): number {
     const sign = (x >= 0) ? 1 : -1;

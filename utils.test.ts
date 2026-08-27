@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getGrowthViewMaxAge, getTodayVolumeTotals, normalizeMl } from './utils';
+import { getGrowthViewMaxAge, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl } from './utils';
 import type { LogEntry } from './types';
 
 describe('normalizeMl', () => {
@@ -39,5 +39,13 @@ describe('getGrowthViewMaxAge', () => {
     expect(getGrowthViewMaxAge(10.1)).toBe(24);
     expect(getGrowthViewMaxAge(20.1)).toBe(36);
     expect(getGrowthViewMaxAge(30.1)).toBe(60);
+  });
+});
+
+describe('getWhoDatasetKey', () => {
+  it('uses the boys dataset by default and only switches for an explicit girl profile', () => {
+    expect(getWhoDatasetKey('boy')).toBe('boys');
+    expect(getWhoDatasetKey(undefined)).toBe('boys');
+    expect(getWhoDatasetKey('girl')).toBe('girls');
   });
 });

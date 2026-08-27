@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AppState, GrowthEntry } from '../types';
-import { generateId, kgToLb, lbToKg, cmToIn, inToCm, formatWeight, formatLength, getAgeInMonths, calculatePercentile, getGrowthViewMaxAge } from '../utils';
+import { generateId, kgToLb, lbToKg, cmToIn, inToCm, formatWeight, formatLength, getAgeInMonths, calculatePercentile, getGrowthViewMaxAge, getWhoDatasetKey } from '../utils';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { WHO_STANDARDS } from './WHOStandards';
 import { format } from 'date-fns';
@@ -131,7 +131,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
   // Chart Data Preparation
   const chartData = useMemo(() => {
     const standards = WHO_STANDARDS;
-    const gender = profile.gender === 'boy' ? 'boys' : 'girls';
+    const gender = getWhoDatasetKey(profile.gender);
     
     const dataPoints = sortedGrowth.map(g => {
        const ageMonths = getAgeInMonths(profile.birthDate, g.date);
@@ -208,7 +208,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
   const getPercentileStr = (age: number, value: number | undefined, tab: 'weight' | 'length' | 'head') => {
       if (!value) return null;
       const standards = WHO_STANDARDS;
-      const gender = profile.gender === 'boy' ? 'boys' : 'girls';
+      const gender = getWhoDatasetKey(profile.gender);
       let source;
       if (tab === 'weight') source = standards.weightForAge[gender];
       else if (tab === 'length') source = standards.lengthForAge[gender];
@@ -268,6 +268,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
     ? getPercentileStr(latestPoint.age, latestPoint.originalValue, activeTab)
     : null;
   const activeLabel = activeTab === 'weight' ? '體重' : activeTab === 'length' ? '身高' : '頭圍';
+  const whoSexLabel = getWhoDatasetKey(profile.gender) === 'boys' ? '男嬰' : '女嬰';
 
   return (
     <div className="space-y-5 p-4 pb-24 sm:p-5 sm:pb-24">
@@ -310,7 +311,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
               <>
                 <p className="mt-0.5 text-3xl font-black tabular-nums text-pink-600">{latestPoint.value.toFixed(1)}<span className="ml-1 text-sm">{activeUnit}</span></p>
                 <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {latestPoint.age.toFixed(1)} 個月{latestPercentile ? ` · WHO ${latestPercentile}` : ''}
+                  {latestPoint.age.toFixed(1)} 個月 · WHO {whoSexLabel}標準{latestPercentile ? ` · ${latestPercentile}` : ''}
                 </p>
               </>
             ) : (
@@ -328,9 +329,9 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
 
         <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 rounded-2xl bg-slate-50 px-3 py-2 text-[11px] font-bold dark:bg-slate-800/70">
           <span className="text-pink-600">● 寶寶紀錄</span>
-          <span className="text-emerald-600">┄ WHO 第 97 百分位</span>
-          <span className="text-blue-600">┄ WHO 第 50 百分位</span>
-          <span className="text-orange-600">┄ WHO 第 3 百分位</span>
+          <span className="text-emerald-600">┄ WHO {whoSexLabel}第 97 百分位</span>
+          <span className="text-blue-600">┄ WHO {whoSexLabel}第 50 百分位</span>
+          <span className="text-orange-600">┄ WHO {whoSexLabel}第 3 百分位</span>
         </div>
 
         <div className="h-[390px] w-full" role="img" aria-label={`${activeLabel}成長曲線，顯示出生至 ${chartData.viewMaxAge} 個月`}>
@@ -379,7 +380,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <p className="mt-1 text-center text-xs font-semibold text-slate-400">圖表會按目前年齡自動放大，不會再把初生數據擠在左下角。</p>
+        <p className="mt-1 text-center text-xs font-semibold text-slate-400">資料採用 WHO 0–5 歲{whoSexLabel}{activeLabel}年齡標準，圖表會按目前年齡自動放大。</p>
       </section>
 
       {/* History List */}
