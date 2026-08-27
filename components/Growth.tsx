@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { AppState, GrowthEntry, BabyProfile } from '../types';
-import { generateId, kgToLb, lbToKg, cmToIn, inToCm, formatWeight, formatLength, getAgeInMonths, calculatePercentile } from '../utils';
-import { RulerIcon, TrashIcon, PencilIcon } from './Icons';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceArea, ReferenceLine } from 'recharts';
+import { AppState, GrowthEntry } from '../types';
+import { generateId, kgToLb, lbToKg, cmToIn, inToCm, formatWeight, formatLength, getAgeInMonths, calculatePercentile, getGrowthViewMaxAge } from '../utils';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { WHO_STANDARDS } from './WHOStandards';
 import { format } from 'date-fns';
 import { doc, setDoc } from 'firebase/firestore';
@@ -159,11 +158,6 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
        };
     }).filter(d => d !== null) as any[];
 
-    // Generate Standard Lines
-    // We generate points for the max age in our data, or at least 0-12 months
-    const maxAge = Math.max(12, ...dataPoints.map(d => d.age + 1));
-    const refData = [];
-    
     let standardSource;
     if (activeTab === 'weight') standardSource = standards.weightForAge[gender];
     else if (activeTab === 'length') standardSource = standards.lengthForAge[gender];
@@ -189,16 +183,27 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
         return { age: s.month, p3, p50, p97, isRef: true };
     });
     
-    // Dynamic chart boundary
+    // Keep the view close to the baby's current age. Recharts otherwise expands
+    // the numeric axis to include the whole WHO dataset and compresses early data.
     const maxUserAge = dataPoints.length > 0 ? Math.max(...dataPoints.map(d => d.age)) : 0;
-    let viewMaxAge = 6;
-    if (maxUserAge > 4) viewMaxAge = 12;
-    if (maxUserAge > 10) viewMaxAge = 24;
-    if (maxUserAge > 20) viewMaxAge = 36;
-    if (maxUserAge > 30) viewMaxAge = 60;
+    const viewMaxAge = getGrowthViewMaxAge(maxUserAge);
 
-    return { user: dataPoints, ref: refLines, viewMaxAge };
-  }, [sortedGrowth, activeTab, profile, WHO_STANDARDS]);
+    const visibleRef = refLines.filter(point => point.age <= viewMaxAge);
+    const visibleUser = dataPoints.filter(point => point.age >= 0 && point.age <= viewMaxAge);
+    const yValues = [
+      ...visibleRef.flatMap(point => [point.p3, point.p50, point.p97]),
+      ...visibleUser.map(point => point.value)
+    ].filter(value => Number.isFinite(value));
+    const minValue = yValues.length ? Math.min(...yValues) : 0;
+    const maxValue = yValues.length ? Math.max(...yValues) : 10;
+    const padding = Math.max((maxValue - minValue) * 0.1, activeTab === 'weight' ? 0.5 : 1);
+    const yDomain: [number, number] = [
+      Math.max(0, Math.floor((minValue - padding) * 10) / 10),
+      Math.ceil((maxValue + padding) * 10) / 10
+    ];
+
+    return { user: visibleUser, ref: visibleRef, viewMaxAge, yDomain };
+  }, [sortedGrowth, activeTab, profile]);
 
   const getPercentileStr = (age: number, value: number | undefined, tab: 'weight' | 'length' | 'head') => {
       if (!value) return null;
@@ -221,19 +226,21 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
       
       const p = calculatePercentile(value, closest.L, closest.M, closest.S);
       if (p === null) return null;
-      return `${p.toFixed(1)}th`;
+      return `第 ${p.toFixed(1)} 百分位`;
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
       if (active && payload && payload.length) {
-          const p = payload[0].payload;
-          if (p.isRef) {
+          const userPoint = payload.find((item: any) => item.payload?.originalValue !== undefined)?.payload;
+          const p = userPoint || payload.find((item: any) => item.payload?.isRef)?.payload;
+          if (!p) return null;
+          if (!userPoint && p.isRef) {
               return (
-                 <div className="bg-white dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700 rounded text-xs shadow-lg">
-                     <p className="font-bold">Age: {p.age.toFixed(2)} months</p>
-                     <p className="text-emerald-500">97%: {p.p97.toFixed(2)}</p>
-                     <p className="text-blue-500">50%: {p.p50.toFixed(2)}</p>
-                     <p className="text-orange-500">3%: {p.p3.toFixed(2)}</p>
+                 <div className="rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-xl dark:border-slate-700 dark:bg-slate-800">
+                     <p className="mb-1 font-bold text-slate-700 dark:text-slate-200">{p.age.toFixed(1)} 個月 WHO 參考</p>
+                     <p className="font-semibold text-emerald-600">第 97 百分位：{p.p97.toFixed(1)}</p>
+                     <p className="font-semibold text-blue-600">第 50 百分位：{p.p50.toFixed(1)}</p>
+                     <p className="font-semibold text-orange-600">第 3 百分位：{p.p3.toFixed(1)}</p>
                  </div>
               );
           }
@@ -241,41 +248,45 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
           const percentile = getPercentileStr(p.age, p.originalValue, activeTab);
           
           return (
-             <div className="bg-white dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700 rounded text-xs shadow-lg">
-                  <p className="font-bold">{format(new Date(p.date), 'PP')}</p>
-                  <p>年齡: {p.age.toFixed(1)}m</p>
-                  <p className="text-pink-500 font-bold text-sm">
-                      {p.value.toFixed(2)} 
+             <div className="rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-xl dark:border-slate-700 dark:bg-slate-800">
+                  <p className="font-bold text-slate-700 dark:text-slate-200">{format(new Date(p.date), 'yyyy年M月d日')}</p>
+                  <p className="mt-1 text-slate-500">年齡：{p.age.toFixed(1)} 個月</p>
+                  <p className="text-base font-black text-pink-600">
+                      {p.value.toFixed(1)}
                       {activeTab === 'weight' ? profile.weightUnit : profile.lengthUnit}
                   </p>
-                  {percentile && <p className="text-indigo-500 font-bold mt-1">WHO {percentile}</p>}
+                  {percentile && <p className="mt-1 font-bold text-indigo-600">WHO {percentile}</p>}
              </div>
           );
       }
       return null;
   };
 
+  const latestPoint = chartData.user[chartData.user.length - 1];
+  const activeUnit = activeTab === 'weight' ? profile.weightUnit : profile.lengthUnit;
+  const latestPercentile = latestPoint
+    ? getPercentileStr(latestPoint.age, latestPoint.originalValue, activeTab)
+    : null;
+  const activeLabel = activeTab === 'weight' ? '體重' : activeTab === 'length' ? '身高' : '頭圍';
+
   return (
-    <div className="p-6 pb-24 space-y-6">
+    <div className="space-y-5 p-4 pb-24 sm:p-5 sm:pb-24">
       <header className="flex justify-between items-center">
         <div>
-           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">成長紀錄</h1>
-           <p className="text-xs text-slate-500">{profile.name} 的成長進度</p>
+           <p className="text-xs font-bold tracking-[0.18em] text-pink-500">成長趨勢</p>
+           <h1 className="mt-1 text-2xl font-black text-slate-800 dark:text-slate-100">成長紀錄</h1>
+           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{profile.name} 的成長進度</p>
         </div>
-        <div className="flex space-x-2">
-            <button 
-                onClick={initAdd}
-                className="text-white bg-pink-500 hover:bg-pink-600 p-2 rounded-xl transition-colors shadow-sm"
-            >
-                <div className="flex items-center space-x-1 font-bold text-sm px-2">
-                    <span>+ 紀錄</span>
-                </div>
-            </button>
-        </div>
+        <button
+            onClick={initAdd}
+            className="min-h-11 rounded-2xl bg-pink-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-pink-200 transition-colors hover:bg-pink-600 dark:shadow-none"
+        >
+            ＋ 紀錄
+        </button>
       </header>
 
       {/* Tabs */}
-      <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex">
+      <div className="flex rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-800">
           {[
               { id: 'weight', label: '體重' },
               { id: 'length', label: '身高' },
@@ -284,51 +295,75 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${activeTab === tab.id ? 'bg-white dark:bg-slate-700 text-pink-600 dark:text-pink-400 shadow-sm' : 'text-slate-500'}`}
+                className={`min-h-11 flex-1 rounded-xl py-2 text-sm font-black transition-all ${activeTab === tab.id ? 'bg-white text-pink-600 shadow-sm dark:bg-slate-700 dark:text-pink-400' : 'text-slate-500 dark:text-slate-400'}`}
               >
                   {tab.label}
               </button>
           ))}
       </div>
 
-      {/* Unit Toggle */}
-      <div className="flex justify-end">
+      <section className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">最新{activeLabel}</p>
+            {latestPoint ? (
+              <>
+                <p className="mt-0.5 text-3xl font-black tabular-nums text-pink-600">{latestPoint.value.toFixed(1)}<span className="ml-1 text-sm">{activeUnit}</span></p>
+                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {latestPoint.age.toFixed(1)} 個月{latestPercentile ? ` · WHO ${latestPercentile}` : ''}
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-sm font-bold text-slate-400">尚未有紀錄</p>
+            )}
+          </div>
           <button 
              onClick={() => toggleUnit(activeTab === 'weight' ? 'weight' : 'length')}
-             className="text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1 rounded-full"
+             aria-label={`切換${activeLabel}單位，目前為 ${activeUnit}`}
+             className="min-h-10 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
           >
-             單位: {activeTab === 'weight' ? profile.weightUnit : profile.lengthUnit}
+             單位 {activeUnit} ⇄
           </button>
-      </div>
+        </div>
 
-      {/* Charts */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 h-[400px] relative">
+        <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 rounded-2xl bg-slate-50 px-3 py-2 text-[11px] font-bold dark:bg-slate-800/70">
+          <span className="text-pink-600">● 寶寶紀錄</span>
+          <span className="text-emerald-600">┄ WHO 第 97 百分位</span>
+          <span className="text-blue-600">┄ WHO 第 50 百分位</span>
+          <span className="text-orange-600">┄ WHO 第 3 百分位</span>
+        </div>
+
+        <div className="h-[390px] w-full" role="img" aria-label={`${activeLabel}成長曲線，顯示出生至 ${chartData.viewMaxAge} 個月`}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart margin={{ top: 30, right: 20, bottom: 20, left: 0 }}>
-             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.5} />
+            <LineChart margin={{ top: 12, right: 8, bottom: 28, left: 2 }} accessibilityLayer>
+             <CartesianGrid strokeDasharray="4 5" vertical={false} stroke={appState.darkMode ? '#334155' : '#e2e8f0'} />
              <XAxis 
                 type="number" 
                 dataKey="age" 
                 name="年齡 (月)" 
                 domain={[0, chartData.viewMaxAge]} 
+                allowDataOverflow
                 ticks={Array.from({length: chartData.viewMaxAge + 1}, (_, i) => i).filter(i => chartData.viewMaxAge <= 12 || i % (chartData.viewMaxAge <= 24 ? 2 : 6) === 0)}
-                label={{ value: '年齡 (月)', position: 'bottom', fontSize: 11, fill: '#64748b', fontWeight: 'bold' }}
-                tick={{fontSize: 11, fill: '#94a3b8', fontWeight: 500}}
+                label={{ value: '年齡（月）', position: 'bottom', offset: 8, fontSize: 12, fill: '#64748b', fontWeight: 700 }}
+                tick={{fontSize: 12, fill: '#64748b', fontWeight: 700}}
                 axisLine={{ stroke: '#cbd5e1' }}
                 tickLine={false}
+                tickMargin={10}
              />
              <YAxis 
-                domain={['dataMin - 1', 'dataMax + 1']} 
-                tick={{fontSize: 11, fill: '#94a3b8', fontWeight: 500}}
+                domain={chartData.yDomain}
+                allowDataOverflow
+                width={42}
+                tick={{fontSize: 12, fill: '#64748b', fontWeight: 700}}
                 axisLine={false}
                 tickLine={false}
              />
              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }} />
              
              {/* Reference Lines (WHO) */}
-             <Line data={chartData.ref} type="monotone" dataKey="p97" stroke="#10b981" strokeDasharray="4 4" dot={false} strokeWidth={2} strokeOpacity={0.4} name="97%" />
-             <Line data={chartData.ref} type="monotone" dataKey="p50" stroke="#3b82f6" strokeDasharray="4 4" dot={false} strokeWidth={2} strokeOpacity={0.4} name="50%" />
-             <Line data={chartData.ref} type="monotone" dataKey="p3" stroke="#f97316" strokeDasharray="4 4" dot={false} strokeWidth={2} strokeOpacity={0.4} name="3%" />
+             <Line data={chartData.ref} type="monotone" dataKey="p97" stroke="#059669" strokeDasharray="7 5" dot={false} strokeWidth={3} strokeOpacity={0.75} name="第 97 百分位" />
+             <Line data={chartData.ref} type="monotone" dataKey="p50" stroke="#2563eb" strokeDasharray="7 5" dot={false} strokeWidth={3} strokeOpacity={0.75} name="第 50 百分位" />
+             <Line data={chartData.ref} type="monotone" dataKey="p3" stroke="#ea580c" strokeDasharray="7 5" dot={false} strokeWidth={3} strokeOpacity={0.75} name="第 3 百分位" />
 
              {/* User Data */}
              <Line 
@@ -336,19 +371,16 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                 type="monotone" 
                 dataKey="value" 
                 stroke="#ec4899" 
-                strokeWidth={3.5}
-                dot={{ r: 5, strokeWidth: 2, fill: '#ffffff', stroke: '#ec4899' }}
-                activeDot={{ r: 7, stroke: '#ec4899', strokeWidth: 2, fill: '#ffffff' }}
+                name="寶寶紀錄"
+                strokeWidth={5}
+                dot={{ r: 7, strokeWidth: 4, fill: '#ffffff', stroke: '#ec4899' }}
+                activeDot={{ r: 9, stroke: '#ec4899', strokeWidth: 3, fill: '#ffffff' }}
              />
             </LineChart>
           </ResponsiveContainer>
-          
-          <div className="absolute top-4 right-6 flex flex-col items-end gap-1 font-bold">
-              <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded shadow-sm">97th Percentile</span>
-              <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded shadow-sm">50th Percentile</span>
-              <span className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded shadow-sm">3rd Percentile</span>
-          </div>
-      </div>
+        </div>
+        <p className="mt-1 text-center text-xs font-semibold text-slate-400">圖表會按目前年齡自動放大，不會再把初生數據擠在左下角。</p>
+      </section>
 
       {/* History List */}
       <div className="space-y-3">

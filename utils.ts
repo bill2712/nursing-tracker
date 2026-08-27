@@ -151,6 +151,14 @@ export const getAgeInMonths = (birthDate: number, targetDate: number = Date.now(
     return days / 30.437; // Average days per month
 };
 
+export const getGrowthViewMaxAge = (maxUserAge: number): 6 | 12 | 24 | 36 | 60 => {
+  if (maxUserAge > 30) return 60;
+  if (maxUserAge > 20) return 36;
+  if (maxUserAge > 10) return 24;
+  if (maxUserAge > 4) return 12;
+  return 6;
+};
+
 // Error function approximation
 function erf(x: number): number {
     const sign = (x >= 0) ? 1 : -1;

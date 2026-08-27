@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getTodayVolumeTotals, normalizeMl } from './utils';
+import { getGrowthViewMaxAge, getTodayVolumeTotals, normalizeMl } from './utils';
 import type { LogEntry } from './types';
 
 describe('normalizeMl', () => {
@@ -29,5 +29,15 @@ describe('getTodayVolumeTotals', () => {
     ];
 
     expect(getTodayVolumeTotals(logs, now)).toEqual({ solidsMl: 80, urineMl: 35 });
+  });
+});
+
+describe('getGrowthViewMaxAge', () => {
+  it('keeps early measurements zoomed in and expands at predictable age bands', () => {
+    expect(getGrowthViewMaxAge(3.8)).toBe(6);
+    expect(getGrowthViewMaxAge(4.1)).toBe(12);
+    expect(getGrowthViewMaxAge(10.1)).toBe(24);
+    expect(getGrowthViewMaxAge(20.1)).toBe(36);
+    expect(getGrowthViewMaxAge(30.1)).toBe(60);
   });
 });

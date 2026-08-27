@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid, AreaChart, Area } from 'recharts';
+import {
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis
+} from 'recharts';
+import { eachDayOfInterval, endOfDay, format, isWithinInterval, startOfDay, subDays } from 'date-fns';
 import { AppState } from '../types';
 import { SparklesIcon } from './Icons';
 import { getGeminiInsights } from '../services/geminiService';
-import { format, startOfDay, endOfDay, isWithinInterval, subDays, eachDayOfInterval } from 'date-fns';
-import { formatDuration } from '../utils';
 
 interface AnalysisProps {
   appState: AppState;
 }
 
+const chartCardClass = 'bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800';
+
 const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
   const today = new Date();
 
-  // Recommended daily feeding volume from growth plan (MM/DD -> ml)
   const babyGrowthPlan: Record<string, number> = {
     '02/20': 483, '02/21': 484, '02/22': 484, '02/23': 484, '02/24': 484,
     '02/25': 485, '02/26': 485, '02/27': 485, '02/28': 508, '03/01': 530,
@@ -44,359 +46,269 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
     setLoading(false);
   };
 
-  // Trend Chart (Last 10 Days)
-  const last10Days = eachDayOfInterval({
-    start: subDays(today, 9),
-    end: today
-  });
-
-  const trendData = last10Days.map(day => {
-    const dayStart = startOfDay(day);
-    const dayEnd = endOfDay(day);
-    
-    const logsInDay = appState.logs.filter(l => isWithinInterval(l.startTime, { start: dayStart, end: dayEnd }));
-
-    // Sleep
+  const trendData = eachDayOfInterval({ start: subDays(today, 9), end: today }).map(day => {
+    const logsInDay = appState.logs.filter(log => isWithinInterval(log.startTime, {
+      start: startOfDay(day), end: endOfDay(day)
+    }));
+    const feedingLogs = logsInDay.filter(log => log.type === 'feeding');
+    const dailyFeedingMl = feedingLogs.reduce((total, log) => total + (log.details.amountMl || 0), 0);
     const dailySleepSeconds = logsInDay
-      .filter(l => l.type === 'sleep')
-      .reduce((acc, curr) => acc + (curr.durationSeconds || 0), 0);
+      .filter(log => log.type === 'sleep')
+      .reduce((total, log) => total + (log.durationSeconds || 0), 0);
+    const solidsMl = logsInDay
+      .filter(log => log.type === 'solids')
+      .reduce((total, log) => total + (log.details.amountMl || 0), 0);
+    const urineMl = logsInDay
+      .filter(log => log.type === 'diaper')
+      .reduce((total, log) => total + (log.details.urineMl || 0), 0);
 
-    // Feeding Volume
-    const dailyFeedingMl = logsInDay
-      .filter(l => l.type === 'feeding')
-      .reduce((acc, curr) => acc + (curr.details.amountMl || 0), 0);
-      
-    // Diaper Breakdown
-    const diapers = logsInDay.filter(l => l.type === 'diaper');
-    let wet = 0; let dirty = 0;
-    diapers.forEach(d => {
-      if (d.details.diaperState === 'wet') wet++;
-      if (d.details.diaperState === 'dirty') dirty++;
-      if (d.details.diaperState === 'mixed') { wet++; dirty++; }
+    let wetDiapers = 0;
+    let dirtyDiapers = 0;
+    logsInDay.filter(log => log.type === 'diaper').forEach(log => {
+      if (log.details.diaperState === 'wet') wetDiapers++;
+      if (log.details.diaperState === 'dirty') dirtyDiapers++;
+      if (log.details.diaperState === 'mixed') {
+        wetDiapers++;
+        dirtyDiapers++;
+      }
     });
 
-    // Colic Count
-    const colicCount = logsInDay.filter(l => l.type === 'colic').length;
-
-    // Feeding Count
-    const feedingCount = logsInDay.filter(l => l.type === 'feeding').length;
-
-    // Recommended ml from growth plan (key: MM/DD)
-    const mmdd = format(day, 'MM/dd').replace('-', '/');
-    // format returns MM/dd, need MM/DD (uppercase has no effect on numbers), key matches
-    const recommendedMl = babyGrowthPlan[format(day, 'MM/dd')] ?? null;
-
     return {
-      date: format(day, 'EEE'), // Mon, Tue...
       fullDate: format(day, 'MMM d'),
-      sleepHours: parseFloat((dailySleepSeconds / 3600).toFixed(1)),
-      sleepSeconds: dailySleepSeconds,
+      shortDate: format(day, 'M/d'),
       feedingMl: dailyFeedingMl,
-      feedingCount: feedingCount,
-      recommendedMl: recommendedMl,
-      wetDiapers: wet,
-      dirtyDiapers: dirty,
-      colicCount: colicCount
+      feedingMlPlot: feedingLogs.length > 0 ? dailyFeedingMl : null,
+      feedingCount: feedingLogs.length,
+      recommendedMl: babyGrowthPlan[format(day, 'MM/dd')] ?? null,
+      wetDiapers, dirtyDiapers, solidsMl, urineMl,
+      sleepHours: Number((dailySleepSeconds / 3600).toFixed(1)),
+      sleepSeconds: dailySleepSeconds
     };
   });
 
-  const SleepTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      const hrs = Math.floor(data.sleepSeconds / 3600);
-      const mins = Math.floor((data.sleepSeconds % 3600) / 60);
-      return (
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
-          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
-          <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-            {hrs}時 {mins}分 沖涼
-          </p>
-        </div>
-      );
-    }
-    return null;
+  const todayData = trendData[trendData.length - 1];
+  const tickColor = appState.darkMode ? '#94a3b8' : '#64748b';
+  const gridColor = appState.darkMode ? '#334155' : '#e2e8f0';
+  const xAxisProps = {
+    dataKey: 'fullDate', interval: 1,
+    tickFormatter: (value: string) => trendData.find(item => item.fullDate === value)?.shortDate || value,
+    tick: { fill: tickColor, fontSize: 11, fontWeight: 600 },
+    tickLine: false, axisLine: false, tickMargin: 10
+  };
+  const yAxisProps = {
+    width: 42, tick: { fill: tickColor, fontSize: 11, fontWeight: 600 },
+    tickLine: false, axisLine: false
   };
 
-  const FeedingTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
-          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
-          <p className="text-sm font-bold text-pink-600 dark:text-pink-400">
-            實際: {data.feedingMl}ml
-          </p>
-          {data.recommendedMl !== null && (
-            <p className="text-sm font-bold text-amber-500 dark:text-amber-400">
-              建議: {data.recommendedMl}ml
-            </p>
-          )}
-          {data.recommendedMl !== null && (
-            <p className={`text-xs font-semibold mt-1 ${data.feedingMl >= data.recommendedMl ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {data.feedingMl >= data.recommendedMl ? `超達 +${data.feedingMl - data.recommendedMl}ml ✅` : `尚缺 ${data.recommendedMl - data.feedingMl}ml`}
-            </p>
-          )}
-        </div>
-      );
-    }
-    return null;
+  const FeedingTooltip = ({ active, payload }: any) => {
+    const data = payload?.[0]?.payload;
+    if (!active || !data) return null;
+    return <ChartTooltip date={data.shortDate} rows={[
+      { label: '實際', value: `${data.feedingMl} ml`, color: 'text-pink-600' },
+      ...(data.recommendedMl === null ? [] : [{ label: '建議', value: `${data.recommendedMl} ml`, color: 'text-amber-600' }])
+    ]} />;
   };
 
-  const FeedingCountTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
-          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
-          <p className="text-sm font-bold text-fuchsia-600 dark:text-fuchsia-400">
-            餵奶次數: {data.feedingCount}次
-          </p>
-        </div>
-      );
-    }
-    return null;
+  const CountTooltip = ({ active, payload }: any) => {
+    const data = payload?.[0]?.payload;
+    if (!active || !data) return null;
+    return <ChartTooltip date={data.shortDate} rows={[{ label: '餵奶', value: `${data.feedingCount} 次`, color: 'text-violet-600' }]} />;
   };
 
-  const DiaperTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
-          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
-          <p className="text-sm font-bold text-sky-500">濕: {data.wetDiapers}次</p>
-          <p className="text-sm font-bold text-amber-600">髒: {data.dirtyDiapers}次</p>
-        </div>
-      );
-    }
-    return null;
+  const DiaperTooltip = ({ active, payload }: any) => {
+    const data = payload?.[0]?.payload;
+    if (!active || !data) return null;
+    return <ChartTooltip date={data.shortDate} rows={[
+      { label: '濕片', value: `${data.wetDiapers} 次`, color: 'text-sky-600' },
+      { label: '便便', value: `${data.dirtyDiapers} 次`, color: 'text-amber-600' },
+      ...(data.urineMl > 0 ? [{ label: '已量度尿量', value: `${data.urineMl} ml`, color: 'text-cyan-600' }] : [])
+    ]} />;
   };
 
-  const ColicTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700">
-          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{data.fullDate}</p>
-          <p className="text-sm font-bold text-rose-500">
-            次數: {data.colicCount}次
-          </p>
-        </div>
-      );
-    }
-    return null;
+  const VolumeTooltip = ({ active, payload }: any) => {
+    const data = payload?.[0]?.payload;
+    if (!active || !data) return null;
+    return <ChartTooltip date={data.shortDate} rows={[
+      { label: '副食', value: `${data.solidsMl} ml`, color: 'text-orange-600' },
+      { label: '尿量', value: `${data.urineMl} ml`, color: 'text-cyan-600' }
+    ]} />;
+  };
+
+  const BathTooltip = ({ active, payload }: any) => {
+    const data = payload?.[0]?.payload;
+    if (!active || !data) return null;
+    const hours = Math.floor(data.sleepSeconds / 3600);
+    const minutes = Math.floor((data.sleepSeconds % 3600) / 60);
+    return <ChartTooltip date={data.shortDate} rows={[{
+      label: '沖涼', value: `${hours > 0 ? `${hours} 小時 ` : ''}${minutes} 分鐘`, color: 'text-indigo-600'
+    }]} />;
   };
 
   return (
-    <div className="p-6 space-y-6 pb-24">
-      <header className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">數據分析</h1>
+    <div className="space-y-5 p-4 pb-24 sm:p-5 sm:pb-24">
+      <header>
+        <p className="text-xs font-bold tracking-[0.18em] text-pink-500">過去 10 天</p>
+        <h1 className="mt-1 text-2xl font-black text-slate-800 dark:text-slate-100">數據分析</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">先看今日重點，再向下比較每日趨勢。</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Feeding Trend Chart */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">餵奶奶量趨勢 (過去10天)</h3>
-          <div className="flex items-center space-x-4 mb-3">
-            <span className="flex items-center space-x-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="inline-block w-6 h-0.5 bg-pink-400 rounded"></span>
-              <span>實際奶量</span>
-            </span>
-            <span className="flex items-center space-x-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="inline-block w-6 border-t-2 border-dashed border-amber-400"></span>
-              <span>建議奶量</span>
-            </span>
+      <section aria-label="今日重點" className="grid grid-cols-2 gap-3">
+        {[
+          { label: '今日奶量', value: todayData.feedingMl, unit: 'ml', color: 'text-pink-600', bg: 'bg-pink-50 dark:bg-pink-950/30' },
+          { label: '今日餵奶', value: todayData.feedingCount, unit: '次', color: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-950/30' },
+          { label: '今日副食', value: todayData.solidsMl, unit: 'ml', color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
+          { label: '今日尿量', value: todayData.urineMl, unit: 'ml', color: 'text-cyan-600', bg: 'bg-cyan-50 dark:bg-cyan-950/30' }
+        ].map(item => (
+          <div key={item.label} className={`${item.bg} rounded-2xl border border-white/70 p-4 dark:border-white/5`}>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.label}</p>
+            <p className={`mt-1 text-2xl font-black tabular-nums ${item.color}`}>{item.value}<span className="ml-1 text-xs font-bold">{item.unit}</span></p>
           </div>
-          <div style={{height: 220}}>
+        ))}
+      </section>
+
+      <section className="space-y-4">
+        <article className={chartCardClass}>
+          <div className="mb-3">
+            <h2 className="text-base font-black text-slate-800 dark:text-slate-100">每日奶量 <span className="text-xs text-slate-400">(ml)</span></h2>
+            <div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-2"><span className="h-1 w-6 rounded-full bg-pink-500" />實際奶量</span>
+              <span className="flex items-center gap-2"><span className="w-6 border-t-2 border-dashed border-amber-500" />建議奶量</span>
+            </div>
+          </div>
+          <div className="h-72" role="img" aria-label="過去十天每日餵奶奶量折線圖">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+              <AreaChart data={trendData} margin={{ top: 8, right: 4, bottom: 4, left: 0 }} accessibilityLayer>
                 <defs>
-                  <linearGradient id="colorFeed" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
+                  <linearGradient id="feeding-area" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#ec4899" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-                <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-                <Tooltip content={<FeedingTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                <Area 
-                  type="monotone" 
-                  dataKey="feedingMl" 
-                  name="實際奶量"
-                  stroke="#ec4899" 
-                  fillOpacity={1}
-                  fill="url(#colorFeed)"
-                  strokeWidth={3}
-                  dot={{ fill: '#ec4899', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
-                  activeDot={{ r: 6 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="recommendedMl"
-                  name="建議奶量"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                  strokeDasharray="6 3"
-                  dot={false}
-                  activeDot={{ r: 5, fill: '#f59e0b' }}
-                  connectNulls
-                />
+                <CartesianGrid strokeDasharray="4 5" vertical={false} stroke={gridColor} />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisProps} />
+                <Tooltip content={<FeedingTooltip />} cursor={{ stroke: '#cbd5e1', strokeDasharray: '4 4' }} />
+                <Area type="monotone" dataKey="feedingMlPlot" stroke="#ec4899" fill="url(#feeding-area)" strokeWidth={4} connectNulls dot={{ fill: '#fff', stroke: '#ec4899', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+                <Line type="monotone" dataKey="recommendedMl" stroke="#f59e0b" strokeWidth={3} strokeDasharray="7 5" dot={false} connectNulls />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-
-          {/* Per-day summary */}
-          <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-3">
-            <div className="grid grid-cols-5 gap-1 text-center text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-2 px-1">
-              <span>日期</span>
-              <span>實際</span>
-              <span>建議</span>
-              <span>差距</span>
-              <span>狀態</span>
-            </div>
-            <div className="space-y-1">
-              {trendData.map((d, i) => {
-                const diff = d.recommendedMl !== null ? d.feedingMl - d.recommendedMl : null;
+          <details className="group mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+            <summary className="cursor-pointer list-none rounded-xl py-2 text-center text-sm font-bold text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+              查看每日數字 <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-180">⌄</span>
+            </summary>
+            <div className="mt-2 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800">
+              <div className="grid grid-cols-4 bg-slate-50 px-3 py-2 text-center text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                <span>日期</span><span>實際</span><span>建議</span><span>差距</span>
+              </div>
+              {trendData.map(item => {
+                const difference = item.recommendedMl === null ? null : item.feedingMl - item.recommendedMl;
                 return (
-                  <div key={i} className="grid grid-cols-5 gap-1 text-center text-[11px] px-1 py-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <span className="font-bold text-slate-600 dark:text-slate-300">{d.date}</span>
-                    <span className="font-black text-pink-600 dark:text-pink-400">{d.feedingMl > 0 ? `${d.feedingMl}` : <span className="text-slate-300">--</span>}</span>
-                    <span className="font-semibold text-amber-500">{d.recommendedMl !== null ? d.recommendedMl : <span className="text-slate-300">--</span>}</span>
-                    <span className={`font-bold ${
-                      diff === null ? 'text-slate-300' :
-                      diff >= 0 ? 'text-emerald-500' : 'text-rose-500'
-                    }`}>{diff === null ? '--' : diff >= 0 ? `+${diff}` : `${diff}`}</span>
-                    <span>{diff === null ? '' : diff >= 0 ? '✅' : '⚠️'}</span>
+                  <div key={item.fullDate} className="grid grid-cols-4 border-t border-slate-100 px-3 py-2 text-center text-xs font-semibold dark:border-slate-800">
+                    <span className="text-slate-600 dark:text-slate-300">{item.shortDate}</span>
+                    <span className="text-pink-600">{item.feedingMl || '—'}</span>
+                    <span className="text-amber-600">{item.recommendedMl ?? '—'}</span>
+                    <span className={difference === null ? 'text-slate-400' : difference >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{difference === null ? '—' : difference > 0 ? `+${difference}` : difference}</span>
                   </div>
                 );
               })}
             </div>
+          </details>
+        </article>
+
+        <article className={chartCardClass}>
+          <h2 className="mb-3 text-base font-black text-slate-800 dark:text-slate-100">每日餵奶次數</h2>
+          <div className="h-64" role="img" aria-label="過去十天每日餵奶次數柱狀圖">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trendData} margin={{ top: 8, right: 4, bottom: 4, left: 0 }} accessibilityLayer>
+                <CartesianGrid strokeDasharray="4 5" vertical={false} stroke={gridColor} />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisProps} allowDecimals={false} />
+                <Tooltip content={<CountTooltip />} cursor={{ fill: appState.darkMode ? '#1e293b' : '#f8fafc' }} />
+                <Bar dataKey="feedingCount" radius={[8, 8, 2, 2]} maxBarSize={24}>
+                  {trendData.map((item, index) => <Cell key={item.fullDate} fill={index === trendData.length - 1 ? '#7c3aed' : '#c084fc'} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </div>
+        </article>
 
-        {/* Feeding Count Chart */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">餵奶次數趨勢 (過去10天)</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} allowDecimals={false} />
-              <Tooltip content={<FeedingCountTooltip />} cursor={{fill: 'transparent'}} />
-              <Bar dataKey="feedingCount" radius={[6, 6, 0, 0]}>
-                {trendData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.feedingCount >= 8 ? '#a855f7' : '#e879f9'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Diaper Trend Chart */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">換片次數趨勢 (過去10天)</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-              <Tooltip content={<DiaperTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
-              <Line 
-                type="monotone" 
-                dataKey="wetDiapers" 
-                name="濕片"
-                stroke="#0ea5e9" 
-                strokeWidth={3}
-                dot={{ fill: '#0ea5e9', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
-                activeDot={{ r: 6 }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="dirtyDiapers" 
-                name="髒片"
-                stroke="#d97706" 
-                strokeWidth={3}
-                dot={{ fill: '#d97706', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Colic Trend Chart */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Colic 趨勢 (過去10天)</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-              <Tooltip content={<ColicTooltip />} cursor={{fill: 'transparent'}} />
-              <Bar dataKey="colicCount" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Sleep Trend Chart */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 h-72">
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">沖涼趨勢 (過去10天)</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trendData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appState.darkMode ? '#334155' : '#f1f5f9'} />
-              <XAxis dataKey="fullDate" tickFormatter={(val) => { const item = trendData.find(d => d.fullDate === val); return item ? item.date : val; }} fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#94a3b8'}} />
-              <Tooltip content={<SleepTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
-              <Line 
-                type="monotone" 
-                dataKey="sleepHours" 
-                stroke="#6366f1" 
-                strokeWidth={3}
-                dot={{ fill: '#6366f1', strokeWidth: 2, r: 4, stroke: appState.darkMode ? '#1e293b' : '#fff' }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-      </div>
-
-      {/* Gemini AI Section */}
-      <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 dark:from-violet-950/40 dark:to-fuchsia-950/40 p-6 rounded-2xl border border-violet-100 dark:border-violet-900/50">
-        <div className="flex items-center space-x-2 mb-4">
-           <SparklesIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-           <h3 className="text-lg font-bold text-violet-800 dark:text-violet-200">詢問 AI 教練</h3>
-        </div>
-        
-        <p className="text-sm text-violet-700 dark:text-violet-300 mb-4 leading-relaxed">
-          讓 AI 為您分析寶寶的作息、洗澡習慣和餵食習慣，提供個人化建議。
-        </p>
-
-        {!insight && !loading && (
-          <button 
-            onClick={handleGetInsight}
-            className="w-full py-3 bg-white dark:bg-violet-900/50 text-violet-600 dark:text-violet-200 font-semibold rounded-xl shadow-sm border border-violet-100 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/70 transition-colors"
-          >
-            分析作息
-          </button>
-        )}
-
-        {loading && (
-          <div className="flex items-center justify-center space-x-2 py-4 text-violet-600 dark:text-violet-400">
-            <div className="w-2 h-2 bg-violet-600 dark:bg-violet-400 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-violet-600 dark:bg-violet-400 rounded-full animate-bounce delay-100"></div>
-            <div className="w-2 h-2 bg-violet-600 dark:bg-violet-400 rounded-full animate-bounce delay-200"></div>
+        <article className={chartCardClass}>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <h2 className="text-base font-black text-slate-800 dark:text-slate-100">每日換片</h2>
+            <div className="flex gap-3 text-xs font-bold"><span className="text-sky-600">● 濕片</span><span className="text-amber-600">● 便便</span></div>
           </div>
-        )}
-
-        {insight && (
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl text-sm text-slate-700 dark:text-slate-300 leading-relaxed border border-violet-100 dark:border-violet-900/50 animate-fade-in">
-             <div className="whitespace-pre-line">{insight}</div>
+          <div className="h-64" role="img" aria-label="過去十天濕片及便便次數折線圖">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData} margin={{ top: 8, right: 4, bottom: 4, left: 0 }} accessibilityLayer>
+                <CartesianGrid strokeDasharray="4 5" vertical={false} stroke={gridColor} />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisProps} allowDecimals={false} />
+                <Tooltip content={<DiaperTooltip />} />
+                <Line type="monotone" dataKey="wetDiapers" stroke="#0284c7" strokeWidth={4} dot={{ fill: '#fff', stroke: '#0284c7', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+                <Line type="monotone" dataKey="dirtyDiapers" stroke="#d97706" strokeWidth={4} dot={{ fill: '#fff', stroke: '#d97706', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
-        )}
-      </div>
+        </article>
+
+        <article className={chartCardClass}>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-black text-slate-800 dark:text-slate-100">副食與尿量 <span className="text-xs text-slate-400">(ml)</span></h2>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">只計已輸入 ml 的紀錄</p>
+            </div>
+            <div className="flex flex-col items-end gap-1 text-xs font-bold"><span className="text-orange-600">● 副食</span><span className="text-cyan-600">● 尿量</span></div>
+          </div>
+          <div className="h-64" role="img" aria-label="過去十天副食及尿量柱狀圖">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trendData} margin={{ top: 8, right: 4, bottom: 4, left: 0 }} barGap={2} accessibilityLayer>
+                <CartesianGrid strokeDasharray="4 5" vertical={false} stroke={gridColor} />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisProps} />
+                <Tooltip content={<VolumeTooltip />} cursor={{ fill: appState.darkMode ? '#1e293b' : '#f8fafc' }} />
+                <Bar dataKey="solidsMl" fill="#f97316" radius={[7, 7, 2, 2]} maxBarSize={18} />
+                <Bar dataKey="urineMl" fill="#06b6d4" radius={[7, 7, 2, 2]} maxBarSize={18} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+
+        <article className={chartCardClass}>
+          <h2 className="mb-3 text-base font-black text-slate-800 dark:text-slate-100">每日沖涼時間 <span className="text-xs text-slate-400">(小時)</span></h2>
+          <div className="h-64" role="img" aria-label="過去十天每日沖涼時數折線圖">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData} margin={{ top: 8, right: 4, bottom: 4, left: 0 }} accessibilityLayer>
+                <CartesianGrid strokeDasharray="4 5" vertical={false} stroke={gridColor} />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisProps} />
+                <Tooltip content={<BathTooltip />} />
+                <Line type="monotone" dataKey="sleepHours" stroke="#4f46e5" strokeWidth={4} dot={{ fill: '#fff', stroke: '#4f46e5', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+      </section>
+
+      <section className="rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-5 dark:border-violet-900/50 dark:from-violet-950/40 dark:to-fuchsia-950/40">
+        <div className="mb-3 flex items-center gap-2">
+          <SparklesIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+          <h2 className="text-lg font-black text-violet-800 dark:text-violet-200">詢問 AI 教練</h2>
+        </div>
+        <p className="mb-4 text-sm leading-relaxed text-violet-700 dark:text-violet-300">分析寶寶的作息、沖涼與餵食習慣，提供個人化建議。</p>
+        {!insight && !loading && <button onClick={handleGetInsight} className="w-full rounded-xl border border-violet-100 bg-white py-3 font-bold text-violet-600 shadow-sm transition-colors hover:bg-violet-50 dark:border-violet-800 dark:bg-violet-900/50 dark:text-violet-200">分析作息</button>}
+        {loading && <div className="py-4 text-center text-sm font-bold text-violet-600">分析中…</div>}
+        {insight && <div className="animate-fade-in whitespace-pre-line rounded-xl border border-violet-100 bg-white p-4 text-sm leading-relaxed text-slate-700 dark:border-violet-900/50 dark:bg-slate-900 dark:text-slate-300">{insight}</div>}
+      </section>
     </div>
   );
 };
+
+const ChartTooltip = ({ date, rows }: { date: string; rows: Array<{ label: string; value: string; color: string }> }) => (
+  <div className="rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-xl dark:border-slate-700 dark:bg-slate-800">
+    <p className="mb-1 font-bold text-slate-700 dark:text-slate-200">{date}</p>
+    {rows.map(row => <p key={row.label} className={`font-bold ${row.color}`}>{row.label} {row.value}</p>)}
+  </div>
+);
 
 export default Analysis;
