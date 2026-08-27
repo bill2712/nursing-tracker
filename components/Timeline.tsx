@@ -38,7 +38,7 @@ const Timeline: React.FC<TimelineProps> = ({ logs, dayString, onEdit }) => {
   const dayLogs = logs;
 
   return (
-    <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden h-[960px] flex">
+    <div className="ui-card relative flex h-[960px] overflow-hidden">
        {/* Time Axis */}
        <div className="w-12 flex-shrink-0 border-r border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-[10px] text-slate-400 font-medium relative select-none">
           {hours.map(h => (

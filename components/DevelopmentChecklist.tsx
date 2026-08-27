@@ -37,7 +37,7 @@ const DevelopmentChecklist: React.FC<DevelopmentChecklistProps> = ({ appState, s
     if (!items || items.length === 0) return null;
     
     return (
-      <div className="mb-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+      <div className="ui-card mb-6 overflow-hidden">
         <div className={`px-4 py-3 ${bgColor} border-b border-slate-100 dark:border-slate-800 flex justify-between items-center`}>
           <div className="flex items-center gap-2">
             <span className="text-xl">{icon}</span>
@@ -100,10 +100,11 @@ const DevelopmentChecklist: React.FC<DevelopmentChecklistProps> = ({ appState, s
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
+    <div className="page-shell flex flex-col h-full">
       {/* Month Selector Header */}
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 pb-2 pt-4 px-4 shrink-0 z-10 sticky top-0 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-4 px-1">成長發展 Checklist</h1>
+      <div className="bg-white/80 dark:bg-slate-900/80 border-b border-white/70 dark:border-slate-800 pb-2 pt-4 px-4 shrink-0 z-10 sticky top-0 shadow-sm backdrop-blur-xl">
+        <p className="page-eyebrow px-1">Development</p>
+        <h1 className="page-title mb-4 mt-1 px-1">成長發展</h1>
         
         <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 -mx-2 px-2 snap-x">
           {DEVELOPMENT_DATA.map(data => (
@@ -123,7 +124,7 @@ const DevelopmentChecklist: React.FC<DevelopmentChecklistProps> = ({ appState, s
 
       <div className="flex-1 overflow-y-auto p-4 pb-24 max-w-md mx-auto w-full">
         {/* Month Summary Card */}
-        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-5 text-white shadow-lg mb-6">
+        <div className="rounded-3xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 p-5 text-white shadow-xl shadow-indigo-200/60 dark:shadow-none mb-6">
           <h2 className="text-xl font-bold mb-2">{currentData.title}</h2>
           <p className="text-sm opacity-90 leading-relaxed">{currentData.description}</p>
         </div>

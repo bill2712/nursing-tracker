@@ -443,7 +443,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
     const isSnoozed = !!appState.activeTimer.snoozeEndTime;
     
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 space-y-6 animate-fade-in relative">
+      <div className="timer-stage page-shell flex flex-col items-center justify-center h-full p-6 space-y-6 animate-fade-in relative">
         <div className="relative mt-4">
           <div className={`absolute -inset-4 rounded-full opacity-30 transition-all duration-500
              ${isSnoozed ? 'bg-amber-400 animate-pulse' : 
@@ -516,7 +516,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
         {/* Simplified Feeding Controls */}
         {isFeeding && (
-          <div className="w-full max-w-sm space-y-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
+          <div className="ui-card w-full max-w-sm space-y-4 p-4 rounded-3xl">
               {/* Duration Controls */}
               <div className="flex flex-col items-center space-y-3 pb-4 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex justify-center space-x-2 mb-1">
@@ -603,7 +603,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
         {/* Simplified Sleep Controls */}
         {isSleep && (
-          <div className="w-full max-w-sm space-y-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
+          <div className="ui-card w-full max-w-sm space-y-4 p-4 rounded-3xl">
               <div className="flex flex-col items-center space-y-3 pb-2">
                   <div className="flex justify-center space-x-2 mb-1">
                     <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">增加沖涼時間</span>
@@ -684,7 +684,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                 </button>
                 <button 
                     onClick={stopTimer}
-                    className={`flex-1 py-4 rounded-xl font-bold text-lg text-white shadow-lg transition-transform active:scale-95 ${isFeeding ? 'bg-pink-500 hover:bg-pink-600 shadow-pink-200 dark:shadow-none' : (isPumping ? 'bg-cyan-500 hover:bg-cyan-600 shadow-cyan-200 dark:shadow-none' : 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-200 dark:shadow-none')}`}
+                    className={`primary-action flex-1 py-4 rounded-2xl font-black text-lg text-white transition-transform active:scale-95 ${isPumping ? 'from-cyan-500 to-blue-500' : ''}`}
                 >
                     完成
                 </button>
@@ -693,8 +693,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
         {/* Edit Active Timer Modal */}
         {showActiveEditModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowActiveEditModal(false)}>
-                <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden p-6" onClick={e => e.stopPropagation()}>
+            <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowActiveEditModal(false)}>
+                <div className="modal-sheet bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] overflow-hidden p-6" onClick={e => e.stopPropagation()}>
                     <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-4">編輯開始時間</h3>
                     <div className="space-y-4">
                         <div className="space-y-1">
@@ -723,16 +723,19 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
   // --- Main Tracker View ---
   return (
-    <div className="flex flex-col h-full p-3 sm:p-4 space-y-3 overflow-y-auto pb-24">
+    <div className="tracker-page page-shell flex flex-col h-full p-3 sm:p-4 space-y-3 overflow-y-auto pb-24">
       {/* Hide Header internally or remove it per user request */}
-      <div className="flex items-center justify-between gap-3 pt-1">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">今日概覽</p>
-          <p className="text-sm font-black text-slate-700 dark:text-slate-200">照顧紀錄</p>
+      <div className="page-header flex items-center justify-between gap-3 py-1">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-pink-100 to-indigo-100 text-2xl shadow-sm dark:from-pink-950/60 dark:to-indigo-950/60">👶</div>
+          <div className="min-w-0">
+            <p className="page-eyebrow">今日概覽</p>
+            <p className="truncate text-lg font-black tracking-tight text-slate-800 dark:text-slate-100">{appState.babyProfile.name} 的照顧</p>
+          </div>
         </div>
         <button 
           onClick={initManualEntry}
-          className="min-h-10 text-xs font-bold text-pink-700 dark:text-pink-300 bg-pink-50 dark:bg-pink-900/20 px-3 py-2 rounded-xl hover:bg-pink-100 dark:hover:bg-pink-900/30 transition-colors"
+          className="primary-action min-h-11 shrink-0 rounded-2xl px-3 py-2 text-xs font-black text-white transition-all active:scale-[0.98]"
         >
           + 補登紀錄
         </button>
@@ -740,7 +743,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
       {/* Last Activity Dashboard */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-28">
+        <div className="ui-card activity-card activity-card--feeding p-3.5 rounded-3xl flex flex-col justify-between min-h-28">
            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次餵奶</span>
            <span className="text-xl font-black text-pink-600 dark:text-pink-400 leading-tight mt-2">
              {lastActivities.feeding ? formatTimeAgoAbsolute(lastActivities.feeding.endTime || lastActivities.feeding.startTime) : '--'}
@@ -755,7 +758,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
            </div>
         </div>
         
-        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-28">
+        <div className="ui-card activity-card activity-card--bath p-3.5 rounded-3xl flex flex-col justify-between min-h-28">
            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次沖涼</span>
            <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 leading-tight mt-2">
              {lastActivities.sleep ? formatTimeAgoAbsolute(lastActivities.sleep.endTime || lastActivities.sleep.startTime) : '--'}
@@ -767,7 +770,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
            </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-28">
+        <div className="ui-card activity-card activity-card--diaper p-3.5 rounded-3xl flex flex-col justify-between min-h-28">
            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次換片</span>
            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 leading-tight mt-2">
              {lastActivities.diaper ? formatTimeAgoAbsolute(lastActivities.diaper.startTime) : '--'}
@@ -785,7 +788,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
            </div>
         </div>
         
-        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-28">
+        <div className="ui-card activity-card activity-card--solids p-3.5 rounded-3xl flex flex-col justify-between min-h-28">
            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次副食</span>
            <span className="text-xl font-black text-orange-600 dark:text-orange-400 leading-tight mt-2">
              {lastActivities.solids ? formatTimeAgoAbsolute(lastActivities.solids.startTime) : '--'}
@@ -808,7 +811,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
         <div className="relative group h-full">
             <button 
               onClick={() => startTimer('feeding')}
-              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-pink-200 dark:hover:border-pink-900 transition-all text-left flex flex-col justify-start active:scale-[0.98] h-full pb-3 sm:pb-4"
+              className="action-card action-card--feeding w-full p-3 sm:p-4 rounded-3xl text-left flex flex-col justify-start h-full pb-3 sm:pb-4"
             >
               <div className="absolute -right-4 -bottom-4 pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
                 <MilkIcon className="w-40 h-40 text-pink-500" />
@@ -828,7 +831,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
         <div className="relative group h-full">
             <button 
               onClick={() => startTimer('sleep')}
-              className="w-full relative overflow-hidden bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900 transition-all text-left flex flex-col justify-start active:scale-[0.98] h-full pb-10 sm:pb-12"
+              className="action-card action-card--bath w-full p-3 sm:p-4 rounded-3xl text-left flex flex-col justify-start h-full pb-10 sm:pb-12"
             >
               <div className="absolute -right-4 -bottom-4 pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
                 <DropletIcon className="w-40 h-40 text-indigo-500" />
@@ -911,7 +914,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
          </div>
 
          {/* Quick Add Solids */}
-         <div className="rounded-2xl border border-orange-100 bg-orange-50/70 p-3 dark:border-orange-900/40 dark:bg-orange-950/20">
+         <div className="quick-panel quick-panel--solids rounded-3xl p-3.5">
            <div className="mb-2 flex items-center justify-between gap-2">
              <p className="text-xs font-black text-orange-800 dark:text-orange-300">🥣 快速記錄副食</p>
              <span className="text-[11px] font-bold text-orange-700/70 dark:text-orange-300/70">今日 {dailyVolumeTotals.solidsMl}ml</span>
@@ -943,7 +946,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
          </div>
 
          {/* Quick Add Diaper */}
-         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+         <div className="quick-panel quick-panel--diaper rounded-3xl p-3.5">
            <div className="mb-2 flex items-center justify-between gap-2">
              <p className="text-xs font-black text-emerald-800 dark:text-emerald-300">快速換片</p>
              <span className="text-[11px] font-bold text-emerald-700/70 dark:text-emerald-300/70">今日 {dailyDiaperCounts.total}次 · {dailyVolumeTotals.urineMl}ml</span>
@@ -979,9 +982,9 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
       {/* Manual Entry Modal */}
       {showManualModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowManualModal(false)}>
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowManualModal(false)}>
            <div 
-             className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in flex flex-col max-h-[90vh]" 
+             className="modal-sheet bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-[2rem] sm:rounded-[2rem] overflow-hidden animate-slide-up sm:animate-fade-in flex flex-col max-h-[90vh]"
              onClick={e => e.stopPropagation()}
            >
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">

@@ -66,8 +66,8 @@ const Health: React.FC<HealthProps> = ({ appState, setAppState }) => {
 
   if (activeTab === 'growth') {
       return (
-          <div className="h-full flex flex-col">
-              <div className="flex shrink-0 justify-center gap-2 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+          <div className="page-shell h-full flex flex-col">
+              <div className="segmented-control z-10 m-3 mb-0 flex shrink-0 justify-center gap-2 rounded-2xl p-1.5 dark:bg-slate-800">
                   <TabButton active={true} onClick={() => {}} label="成長" />
                   <TabButton active={false} onClick={() => setActiveTab('vaccines')} label="疫苗" />
                   <TabButton active={false} onClick={() => setActiveTab('milestones')} label="發展" />
@@ -108,8 +108,8 @@ const Health: React.FC<HealthProps> = ({ appState, setAppState }) => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
-       <div className="z-10 flex shrink-0 justify-center gap-2 border-b border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+    <div className="page-shell h-full flex flex-col">
+       <div className="segmented-control z-10 m-3 mb-0 flex shrink-0 justify-center gap-2 rounded-2xl p-1.5 dark:bg-slate-800">
             <TabButton active={false} onClick={() => setActiveTab('growth')} label="成長" />
             <TabButton active={activeTab === 'vaccines'} onClick={() => setActiveTab('vaccines')} label="疫苗" />
             <TabButton active={activeTab === 'milestones'} onClick={() => setActiveTab('milestones')} label="發展" />
@@ -121,7 +121,7 @@ const Health: React.FC<HealthProps> = ({ appState, setAppState }) => {
             if (!items || items.length === 0) return null;
 
             return (
-                <div key={age} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+                <div key={age} className="ui-card rounded-3xl overflow-hidden">
                     <div className="bg-slate-50 dark:bg-slate-900/50 px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                         <span className="font-bold text-slate-700 dark:text-slate-300">{renderAgeLabel(age)}</span>
                         <span className="text-xs font-medium text-slate-400">{items.filter((i: any) => i.completed).length} / {items.length} 完成</span>

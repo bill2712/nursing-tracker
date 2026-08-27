@@ -271,8 +271,8 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
   const whoSexLabel = getWhoDatasetKey(profile.gender) === 'boys' ? '男嬰' : '女嬰';
 
   return (
-    <div className="space-y-5 p-4 pb-24 sm:p-5 sm:pb-24">
-      <header className="flex justify-between items-center">
+    <div className="page-shell space-y-5 p-4 pb-24 sm:p-5 sm:pb-24">
+      <header className="page-header flex justify-between items-center">
         <div>
            <p className="text-xs font-bold tracking-[0.18em] text-pink-500">成長趨勢</p>
            <h1 className="mt-1 text-2xl font-black text-slate-800 dark:text-slate-100">成長紀錄</h1>
@@ -280,14 +280,14 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
         </div>
         <button
             onClick={initAdd}
-            className="min-h-11 rounded-2xl bg-pink-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-pink-200 transition-colors hover:bg-pink-600 dark:shadow-none"
+            className="primary-action min-h-11 rounded-2xl px-4 py-2 text-sm font-black text-white transition-all active:scale-[0.98]"
         >
             ＋ 紀錄
         </button>
       </header>
 
       {/* Tabs */}
-      <div className="flex rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-800">
+      <div className="segmented-control flex rounded-2xl p-1.5 dark:bg-slate-800">
           {[
               { id: 'weight', label: '體重' },
               { id: 'length', label: '身高' },
@@ -303,7 +303,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
           ))}
       </div>
 
-      <section className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <section className="ui-card rounded-3xl p-4">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400">最新{activeLabel}</p>
@@ -390,7 +390,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
               <div 
                 key={entry.id}
                 onClick={() => handleEdit(entry)}
-                className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex justify-between items-center group cursor-pointer active:bg-slate-50 dark:active:bg-slate-800"
+                className="ui-card rounded-2xl p-4 flex justify-between items-center group cursor-pointer transition-transform active:scale-[0.99]"
               >
                   <div>
                       <div className="text-sm font-bold text-slate-700 dark:text-slate-200">

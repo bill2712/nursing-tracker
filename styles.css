@@ -3,10 +3,33 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color-scheme: light;
+    --app-canvas: #f7f8fc;
+    --app-surface: rgb(255 255 255 / 82%);
+    --app-surface-strong: #ffffff;
+    --app-line: rgb(226 232 240 / 82%);
+    --app-text: #182238;
+    --app-muted: #718096;
+    --app-brand: #e93c88;
+    --app-brand-strong: #cf286f;
+    --app-indigo: #6366f1;
+    --app-radius-card: 1.5rem;
+    --app-radius-control: 0.9rem;
+    --app-shadow-card: 0 1px 2px rgb(15 23 42 / 3%), 0 12px 32px rgb(47 55 85 / 8%);
+    --app-shadow-float: 0 18px 55px rgb(49 46 129 / 14%), 0 3px 12px rgb(15 23 42 / 6%);
+  }
+
   body {
     margin: 0;
-    background: #f8fafc;
+    min-width: 320px;
+    min-height: 100vh;
+    background:
+      linear-gradient(135deg, rgb(255 247 251 / 96%), rgb(239 246 255 / 94%) 46%, rgb(240 253 250 / 92%));
+    color: var(--app-text);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -18,9 +41,305 @@
   }
 
   :where(button, input, textarea, select):focus-visible {
-    outline: 3px solid rgb(236 72 153 / 35%);
-    outline-offset: 2px;
+    outline: 3px solid rgb(233 60 136 / 28%);
+    outline-offset: 3px;
   }
+}
+
+@layer components {
+  .app-shell {
+    isolation: isolate;
+    border: 1px solid rgb(255 255 255 / 72%);
+    background: rgb(247 248 252 / 78%);
+    box-shadow: 0 28px 90px rgb(43 54 88 / 18%), inset 0 1px 0 rgb(255 255 255 / 75%);
+    backdrop-filter: blur(20px) saturate(125%);
+  }
+
+  .app-frame {
+    background: transparent;
+  }
+
+  .app-main {
+    background:
+      radial-gradient(circle at 8% 4%, rgb(244 114 182 / 9%), transparent 26rem),
+      radial-gradient(circle at 96% 36%, rgb(99 102 241 / 8%), transparent 24rem),
+      linear-gradient(180deg, rgb(255 255 255 / 50%), rgb(248 250 252 / 70%));
+  }
+
+  .page-shell {
+    position: relative;
+  }
+
+  .page-header {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .page-eyebrow {
+    color: var(--app-brand);
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .page-title {
+    color: var(--app-text);
+    font-size: clamp(1.55rem, 5vw, 1.9rem);
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    line-height: 1.08;
+  }
+
+  .ui-card {
+    border: 1px solid rgb(255 255 255 / 85%);
+    border-radius: var(--app-radius-card);
+    background: var(--app-surface);
+    box-shadow: var(--app-shadow-card);
+    backdrop-filter: blur(15px) saturate(115%);
+  }
+
+  .activity-card,
+  .action-card,
+  .quick-panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 80%);
+    box-shadow: var(--app-shadow-card);
+    backdrop-filter: blur(14px) saturate(115%);
+  }
+
+  .activity-card::before {
+    position: absolute;
+    inset-block: 0.7rem;
+    inset-inline-start: 0;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--card-accent);
+    content: "";
+  }
+
+  .activity-card::after {
+    position: absolute;
+    inset-block-start: -2.8rem;
+    inset-inline-end: -2.4rem;
+    width: 6rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--card-glow);
+    content: "";
+    pointer-events: none;
+  }
+
+  .activity-card--feeding { --card-accent: #ec4899; --card-glow: rgb(236 72 153 / 10%); }
+  .activity-card--bath { --card-accent: #6366f1; --card-glow: rgb(99 102 241 / 11%); }
+  .activity-card--diaper { --card-accent: #10b981; --card-glow: rgb(16 185 129 / 11%); }
+  .activity-card--solids { --card-accent: #f97316; --card-glow: rgb(249 115 22 / 11%); }
+
+  .action-card {
+    min-height: 7rem;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  }
+
+  .action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 34px rgb(47 55 85 / 12%);
+  }
+
+  .action-card:active {
+    transform: translateY(0) scale(0.985);
+  }
+
+  .action-card--feeding {
+    background: linear-gradient(145deg, rgb(255 255 255 / 94%), rgb(253 242 248 / 92%));
+  }
+
+  .action-card--bath {
+    background: linear-gradient(145deg, rgb(255 255 255 / 94%), rgb(238 242 255 / 92%));
+  }
+
+  .quick-panel--solids {
+    background: linear-gradient(145deg, rgb(255 251 235 / 90%), rgb(255 247 237 / 94%));
+  }
+
+  .quick-panel--diaper {
+    background: linear-gradient(145deg, rgb(240 253 250 / 90%), rgb(236 253 245 / 94%));
+  }
+
+  .segmented-control {
+    border: 1px solid rgb(255 255 255 / 72%);
+    border-radius: 1rem;
+    background: rgb(226 232 240 / 60%);
+    box-shadow: inset 0 1px 2px rgb(15 23 42 / 4%);
+    backdrop-filter: blur(10px);
+  }
+
+  .bottom-nav {
+    min-height: 4.75rem;
+    margin: 0 0.55rem 0.55rem;
+    border: 1px solid rgb(255 255 255 / 80%);
+    border-radius: 1.4rem;
+    background: rgb(255 255 255 / 82%);
+    box-shadow: 0 16px 38px rgb(44 51 84 / 14%), inset 0 1px 0 rgb(255 255 255 / 80%);
+    backdrop-filter: blur(22px) saturate(150%);
+  }
+
+  .nav-button {
+    position: relative;
+    flex: 1 1 0;
+    transition: color 160ms ease, transform 160ms ease;
+  }
+
+  .nav-button[aria-current="page"] {
+    color: var(--app-brand);
+    transform: translateY(-1px);
+  }
+
+  .nav-icon {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2rem;
+    border-radius: 0.85rem;
+    transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  }
+
+  .nav-button[aria-current="page"] .nav-icon {
+    background: linear-gradient(135deg, #fce7f3, #eef2ff);
+    box-shadow: 0 7px 16px rgb(236 72 153 / 16%);
+    transform: translateY(-2px);
+  }
+
+  .primary-action {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgb(255 255 255 / 28%);
+    border-radius: var(--app-radius-control);
+    background: linear-gradient(135deg, #ec4899, #d946ef 52%, #6366f1);
+    box-shadow: 0 10px 24px rgb(219 39 119 / 22%);
+    color: #ffffff;
+    font-weight: 850;
+    transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+  }
+
+  .primary-action:hover {
+    filter: saturate(112%) brightness(1.02);
+    transform: translateY(-1px);
+  }
+
+  .primary-action:active {
+    transform: translateY(0) scale(0.985);
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    z-index: 50;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+    background: rgb(15 23 42 / 44%);
+    backdrop-filter: blur(9px);
+    animation: fade-in 180ms ease-out;
+  }
+
+  .modal-sheet {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 65%);
+    border-radius: 2rem 2rem 0 0;
+    background: var(--app-surface-strong);
+    box-shadow: 0 28px 80px rgb(15 23 42 / 30%);
+  }
+
+  .login-page {
+    background:
+      radial-gradient(circle at 18% 18%, rgb(244 114 182 / 18%), transparent 22rem),
+      radial-gradient(circle at 82% 78%, rgb(99 102 241 / 18%), transparent 24rem),
+      linear-gradient(145deg, #fff8fb, #f1f5ff 55%, #effcf9);
+  }
+
+  .login-card {
+    border: 1px solid rgb(255 255 255 / 88%);
+    background: rgb(255 255 255 / 76%);
+    box-shadow: var(--app-shadow-float);
+    backdrop-filter: blur(24px) saturate(145%);
+  }
+
+  .login-mark {
+    background: linear-gradient(145deg, #fce7f3, #eef2ff);
+    box-shadow: 0 16px 32px rgb(236 72 153 / 18%), inset 0 1px 0 rgb(255 255 255 / 85%);
+  }
+
+  .dark {
+    color-scheme: dark;
+    --app-canvas: #0b1020;
+    --app-surface: rgb(15 23 42 / 78%);
+    --app-surface-strong: #111827;
+    --app-line: rgb(51 65 85 / 80%);
+    --app-text: #f1f5f9;
+    --app-muted: #94a3b8;
+    --app-shadow-card: 0 14px 34px rgb(0 0 0 / 24%), inset 0 1px 0 rgb(255 255 255 / 3%);
+  }
+
+  .dark .app-frame,
+  .dark .app-main {
+    background:
+      radial-gradient(circle at 8% 4%, rgb(190 24 93 / 12%), transparent 25rem),
+      radial-gradient(circle at 96% 36%, rgb(79 70 229 / 13%), transparent 23rem),
+      #0b1020;
+  }
+
+  .dark .bottom-nav {
+    border-color: rgb(51 65 85 / 72%);
+    background: rgb(15 23 42 / 84%);
+    box-shadow: 0 16px 38px rgb(0 0 0 / 30%), inset 0 1px 0 rgb(255 255 255 / 4%);
+  }
+
+  .dark .nav-button[aria-current="page"] .nav-icon {
+    background: linear-gradient(135deg, rgb(131 24 67 / 42%), rgb(49 46 129 / 45%));
+  }
+
+  .dark .quick-panel--solids { background: linear-gradient(145deg, rgb(67 20 7 / 58%), rgb(30 41 59 / 72%)); }
+  .dark .quick-panel--diaper { background: linear-gradient(145deg, rgb(6 78 59 / 42%), rgb(30 41 59 / 72%)); }
+  .dark .action-card--feeding { background: linear-gradient(145deg, rgb(30 41 59 / 92%), rgb(80 7 36 / 38%)); }
+  .dark .action-card--bath { background: linear-gradient(145deg, rgb(30 41 59 / 92%), rgb(30 27 75 / 50%)); }
+}
+
+.app-shell :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select) {
+  min-height: 2.75rem;
+  border-color: rgb(203 213 225 / 82%);
+  border-radius: var(--app-radius-control);
+  background: rgb(255 255 255 / 78%);
+  box-shadow: inset 0 1px 2px rgb(15 23 42 / 3%);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.app-shell :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select):focus {
+  border-color: rgb(236 72 153 / 65%);
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 0 0 4px rgb(236 72 153 / 10%);
+  outline: none;
+}
+
+.dark .app-shell :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select) {
+  border-color: rgb(71 85 105 / 78%);
+  background: rgb(15 23 42 / 72%);
+}
+
+.dark .page-title { color: #f8fafc; }
+
+.app-shell button:not(:disabled) {
+  touch-action: manipulation;
 }
 
 @layer utilities {
@@ -44,6 +363,10 @@
   .animate-slide-up {
     animation: slide-up 220ms ease-out;
   }
+
+  .animate-soft-pop {
+    animation: soft-pop 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
 @keyframes fade-in {
@@ -54,6 +377,17 @@
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(1rem); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes soft-pop {
+  from { opacity: 0; transform: translateY(0.45rem) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (min-width: 640px) {
+  .app-shell {
+    border-radius: 2rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

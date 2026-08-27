@@ -13,18 +13,19 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-8 text-center space-y-6">
-        <div className="w-20 h-20 bg-pink-100 dark:bg-pink-900/40 rounded-full flex items-center justify-center mx-auto animate-bounce-slow">
-           <span className="text-4xl">👶</span>
+    <div className="login-page min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="login-card animate-soft-pop max-w-md w-full rounded-[2rem] p-8 sm:p-10 text-center space-y-7">
+        <div className="login-mark w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto -rotate-3">
+           <span className="text-5xl rotate-3">👶</span>
         </div>
         <div>
-           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">歡迎使用 NurtureTrack</h1>
-           <p className="text-slate-500 dark:text-slate-400">即時與家人同步寶寶的成長紀錄。</p>
+           <p className="page-eyebrow mb-2">NurtureTrack</p>
+           <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-slate-100 mb-3">寶寶照顧，輕鬆記錄</h1>
+           <p className="mx-auto max-w-xs leading-relaxed text-slate-500 dark:text-slate-400">即時與家人同步餵奶、換片、副食及成長紀錄。</p>
         </div>
         <button
           onClick={handleLogin}
-          className="w-full py-3.5 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl flex items-center justify-center gap-3 transition-all shadow-sm group"
+          className="w-full min-h-14 py-3.5 px-4 bg-white/90 dark:bg-slate-800 border border-white dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-black rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-slate-200/70 dark:shadow-none group active:scale-[0.99]"
         >
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-6 h-6 group-hover:scale-110 transition-transform" />
           使用 Google 帳號登入

@@ -155,9 +155,12 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
   };
 
   return (
-    <div className="p-6 space-y-8 pb-24">
-      <header className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">設定</h1>
+    <div className="page-shell space-y-8 p-4 pb-24 sm:p-5 sm:pb-24">
+      <header className="page-header">
+        <div>
+          <p className="page-eyebrow">Preferences</p>
+          <h1 className="page-title">設定</h1>
+        </div>
         <div className="flex items-center space-x-3">
              <span className="text-sm font-bold text-slate-500 dark:text-slate-400">深色模式</span>
              <button 
@@ -175,13 +178,13 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
             <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">寶寶設定</h3>
             <button 
                 onClick={handleSaveProfile}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-full text-xs font-bold transition-colors shadow-sm"
+                className="primary-action px-4 py-2.5 text-xs"
             >
                 儲存設定
             </button>
         </div>
         
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 space-y-4">
+        <div className="ui-card space-y-4 p-6">
            
            <div className="space-y-2">
              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">名字</label>
@@ -231,7 +234,7 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
       {/* Sleep Goals */}
       <section className="space-y-4">
         <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">每日沖涼目標</h3>
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div className="ui-card flex items-center justify-between p-6">
            <div className="flex flex-col items-center">
               <input 
                 type="number" min="0" max="24"
@@ -271,7 +274,7 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
         </div>
         
         {appState.reminders.enabled && (
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 space-y-6 animate-fade-in">
+          <div className="ui-card animate-soft-pop space-y-6 p-6">
              <div className="space-y-2">
                <div className="flex justify-between text-sm font-medium text-slate-700 dark:text-slate-300">
                   <span>餵奶提醒</span>
@@ -324,7 +327,7 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
       <section className="space-y-4">
         <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">資料管理</h3>
         
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+        <div className="ui-card overflow-hidden">
            <button 
               onClick={() => exportToCSV(appState.logs)}
               className="w-full text-left px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-medium"
@@ -346,7 +349,7 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
            下載備份檔並傳送給伴侶以同步裝置。
         </p>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 space-y-4">
+        <div className="ui-card space-y-4 p-6">
             {/* Download Backup */}
             <button 
                 onClick={handleDownloadBackup}

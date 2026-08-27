@@ -12,7 +12,7 @@ interface AnalysisProps {
   appState: AppState;
 }
 
-const chartCardClass = 'bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800';
+const chartCardClass = 'ui-card chart-card p-4 sm:p-5 rounded-3xl';
 
 const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
   const [insight, setInsight] = useState<string | null>(null);
@@ -145,8 +145,8 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
   };
 
   return (
-    <div className="space-y-5 p-4 pb-24 sm:p-5 sm:pb-24">
-      <header>
+    <div className="page-shell space-y-5 p-4 pb-24 sm:p-5 sm:pb-24">
+      <header className="page-header">
         <p className="text-xs font-bold tracking-[0.18em] text-pink-500">過去 10 天</p>
         <h1 className="mt-1 text-2xl font-black text-slate-800 dark:text-slate-100">數據分析</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">先看今日重點，再向下比較每日趨勢。</p>
@@ -159,7 +159,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
           { label: '今日副食', value: todayData.solidsMl, unit: 'ml', color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
           { label: '今日尿量', value: todayData.urineMl, unit: 'ml', color: 'text-cyan-600', bg: 'bg-cyan-50 dark:bg-cyan-950/30' }
         ].map(item => (
-          <div key={item.label} className={`${item.bg} rounded-2xl border border-white/70 p-4 dark:border-white/5`}>
+          <div key={item.label} className={`ui-card ${item.bg} rounded-3xl border border-white/70 p-4 dark:border-white/5`}>
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.label}</p>
             <p className={`mt-1 text-2xl font-black tabular-nums ${item.color}`}>{item.value}<span className="ml-1 text-xs font-bold">{item.unit}</span></p>
           </div>
@@ -290,7 +290,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
         </article>
       </section>
 
-      <section className="rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-5 dark:border-violet-900/50 dark:from-violet-950/40 dark:to-fuchsia-950/40">
+      <section className="ui-card rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-5 dark:border-violet-900/50 dark:from-violet-950/40 dark:to-fuchsia-950/40">
         <div className="mb-3 flex items-center gap-2">
           <SparklesIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
           <h2 className="text-lg font-black text-violet-800 dark:text-violet-200">詢問 AI 教練</h2>

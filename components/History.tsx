@@ -219,20 +219,23 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
   }
 
   return (
-    <div className="p-6 pb-24 space-y-6">
-      <header className="flex flex-col space-y-3 sm:flex-row sm:justify-between sm:items-center sm:space-y-0">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">歷史紀錄</h1>
+    <div className="page-shell space-y-6 p-4 pb-24 sm:p-5 sm:pb-24">
+      <header className="page-header flex-col space-y-3 sm:flex-row sm:space-y-0">
+        <div>
+          <p className="page-eyebrow">Daily journal</p>
+          <h1 className="page-title">歷史紀錄</h1>
+        </div>
         <div className="flex space-x-2">
             <button 
                 onClick={handleCreateClick}
-                className="text-xs font-bold text-white bg-pink-500 hover:bg-pink-600 px-3 py-2 rounded-lg transition-colors shadow-sm"
+                className="primary-action px-4 py-2.5 text-xs"
             >
                 + 新增紀錄
             </button>
             {logs.length > 0 && (
                 <button 
                     onClick={() => openExportModal(logs)}
-                    className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+                    className="min-h-10 rounded-xl border border-white/80 bg-white/75 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                 >
                     匯出全部
                 </button>
@@ -249,7 +252,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
       </header>
         
       {/* View Toggle */}
-      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+      <div className="segmented-control flex p-1">
             <button 
             onClick={() => setViewMode('list')}
             className={`flex-1 py-1.5 flex justify-center items-center rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 text-pink-600 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
@@ -265,7 +268,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 space-y-4">
+      <div className="ui-card space-y-4 p-4">
         {/* Date Filter */}
         <div className="space-y-3">
             <div className="flex justify-between items-center">
@@ -348,7 +351,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                       <div 
                         key={log.id} 
                         onClick={() => handleEditClick(log)}
-                        className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center justify-between group relative overflow-hidden cursor-pointer active:bg-slate-50 dark:active:bg-slate-800 transition-colors"
+                        className="ui-card group relative flex cursor-pointer items-center justify-between overflow-hidden p-4 transition-all active:scale-[0.99] dark:active:bg-slate-800"
                       >
                         <div className="flex items-center space-x-4 flex-1 min-w-0">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
@@ -441,8 +444,8 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
 
       {/* Export Options Modal */}
       {showExportModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setShowExportModal(false)}>
-              <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="modal-backdrop items-center p-4" onClick={() => setShowExportModal(false)}>
+              <div className="modal-sheet max-w-sm rounded-3xl" onClick={e => e.stopPropagation()}>
                   <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
                       <h3 className="font-bold text-slate-800 dark:text-slate-100">匯出選項</h3>
                   </div>
@@ -482,8 +485,8 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
 
       {/* Full Edit/Create Modal */}
       {editingLog && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setEditingLog(null)}>
-          <div className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="modal-backdrop sm:items-center sm:p-4" onClick={() => setEditingLog(null)}>
+          <div className="modal-sheet max-h-[95vh] flex-col sm:max-w-sm sm:rounded-3xl" onClick={e => e.stopPropagation()}>
             {/* Mobile Drag Handle */}
             <div className="w-full flex justify-center pt-3 pb-2 sm:hidden bg-slate-50 dark:bg-slate-800/50">
               <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
