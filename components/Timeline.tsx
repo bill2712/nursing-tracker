@@ -1,8 +1,8 @@
 import React from 'react';
-import { format, differenceInMinutes, startOfDay } from 'date-fns';
+import { format, differenceInMinutes } from 'date-fns';
 import { LogEntry } from '../types';
 import { formatDuration } from '../utils';
-import { MilkIcon, MoonIcon, BabyIcon, PumpIcon, FoodIcon, DropletIcon, ColicIcon } from './Icons';
+import { MilkIcon, BabyIcon, PumpIcon, FoodIcon, DropletIcon, ColicIcon } from './Icons';
 
 interface TimelineProps {
   logs: LogEntry[];
@@ -97,6 +97,8 @@ const Timeline: React.FC<TimelineProps> = ({ logs, dayString, onEdit }) => {
                                   (log.details.feedingType === 'nursing' ? '親餵' : (log.details.feedingType === 'bottle' ? '瓶餵' : log.details.feedingType))
                                 )}
                                 {log.type === 'sleep' && formatDuration(log.durationSeconds || 0)}
+                                {log.type === 'solids' && log.details.amountMl ? `${log.details.amountMl}ml` : ''}
+                                {log.type === 'diaper' && log.details.urineMl ? `尿量 ${log.details.urineMl}ml` : ''}
                                 {log.details.notes}
                             </span>
                         </div>

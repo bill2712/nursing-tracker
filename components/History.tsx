@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { format, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
-import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { AppState, LogEntry, ActivityType } from '../types';
 import { formatDuration, exportToCSV, ExportColumn, generateId } from '../utils';
-import { TrashIcon, MilkIcon, MoonIcon, BabyIcon, PencilIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon, DropletIcon, ColicIcon } from './Icons';
+import { TrashIcon, MilkIcon, BabyIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon, DropletIcon, ColicIcon } from './Icons';
 import Timeline from './Timeline';
 
 interface HistoryProps {
@@ -13,7 +13,7 @@ interface HistoryProps {
 import { doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
-const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
+const History: React.FC<HistoryProps> = ({ logs }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -43,9 +43,10 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
             const states: Record<string, string> = { wet: '濕', dirty: '髒', mixed: '混合' };
             det.push(states[l.details.diaperState] || l.details.diaperState);
         }
+        if (l.details.urineMl) det.push(`尿量 ${l.details.urineMl}ml`);
         return det.join('; ');
     }},
-    { key: 'notes', label: '備註', enabled: true, value: (l) => `"${(l.details.notes || '').replace(/"/g, '""')}"` }
+    { key: 'notes', label: '備註', enabled: true, value: (l) => l.details.notes || '' }
   ]);
   
   // Edit Form State
@@ -53,7 +54,6 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
   const [editEndTime, setEditEndTime] = useState('');
   const [editType, setEditType] = useState<ActivityType>('feeding');
   const [editDetails, setEditDetails] = useState<LogEntry['details']>({});
-  const [newFoodInput, setNewFoodInput] = useState('');
 
   // Clear delete confirmation state when clicking elsewhere
   useEffect(() => {
@@ -112,32 +112,62 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
     if (!editingLog) return;
     
     const start = new Date(editStartTime).getTime();
-    const end = editEndTime ? new Date(editEndTime).getTime() : undefined;
+    const isPointEvent = editType === 'diaper' || editType === 'solids';
+    const end = !isPointEvent && editEndTime ? new Date(editEndTime).getTime() : undefined;
+
+    if (!Number.isFinite(start)) {
+      alert('請選擇有效時間');
+      return;
+    }
+    if (!isPointEvent && (!end || end <= start)) {
+      alert('結束時間必須遲於開始時間');
+      return;
+    }
+    if (editDetails.amountMl !== undefined && (editDetails.amountMl < 0 || editDetails.amountMl > 2000)) {
+      alert('份量請輸入 0 至 2000 ml');
+      return;
+    }
+    if (editDetails.urineMl !== undefined && (editDetails.urineMl < 0 || editDetails.urineMl > 2000)) {
+      alert('尿量請輸入 0 至 2000 ml');
+      return;
+    }
     
     // Recalculate duration if applicable
     let durationSeconds = editingLog.durationSeconds;
     if (end) {
         durationSeconds = Math.floor((end - start) / 1000);
-    } else if (editingLog.durationSeconds && !end) {
-        if (editType === 'diaper') durationSeconds = undefined;
+    } else if (isPointEvent) {
+        durationSeconds = undefined;
     }
 
     // Sanitize details based on type to avoid junk data
     const sanitizedDetails: LogEntry['details'] = { ...editDetails };
-    if (editType !== 'feeding' && editType !== 'pumping') {
+    if (editType !== 'feeding' && editType !== 'pumping' && editType !== 'solids') {
         delete sanitizedDetails.side;
         delete sanitizedDetails.amountMl;
     }
     if (editType !== 'diaper') {
         delete sanitizedDetails.diaperState;
+        delete sanitizedDetails.urineMl;
+    } else {
+        sanitizedDetails.diaperState ||= 'wet';
     }
+    if (editType !== 'solids') {
+        delete sanitizedDetails.foods;
+        delete sanitizedDetails.reaction;
+    }
+    Object.keys(sanitizedDetails).forEach(key => {
+        if (sanitizedDetails[key as keyof LogEntry['details']] === undefined) {
+            delete sanitizedDetails[key as keyof LogEntry['details']];
+        }
+    });
 
+    const { endTime: _oldEndTime, durationSeconds: _oldDuration, ...baseLog } = editingLog;
     const updatedLog: LogEntry = {
-        ...editingLog,
+        ...baseLog,
         type: editType,
         startTime: start,
-        endTime: end,
-        durationSeconds: durationSeconds,
+        ...(end ? { endTime: end, durationSeconds } : {}),
         details: sanitizedDetails
     };
     
@@ -146,13 +176,6 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
     
     setEditingLog(null);
     setIsCreating(false);
-  };
-
-  const handleAllDaySleep = () => {
-      const now = new Date();
-      const start = startOfDay(now);
-      setEditStartTime(toLocalISO(start.getTime()));
-      setEditEndTime(toLocalISO(now.getTime()));
   };
 
   const filteredLogs = useMemo(() => {
@@ -281,12 +304,12 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
         {/* Type Filter */}
         <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase mb-2">活動類型</p>
-             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+             <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                 {(['all', 'feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic', 'clear_snot', 'clean_mouth'] as const).map(t => (
                     <button
                         key={t}
                         onClick={() => setFilterType(t)}
-                        className={`flex-1 py-1.5 text-xs font-bold capitalize rounded-md transition-all ${
+                        className={`min-h-9 px-1 py-1.5 text-[11px] font-bold rounded-md transition-all ${
                             filterType === t 
                             ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' 
                             : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
@@ -369,14 +392,11 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                               {log.details.diaperState && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">
                                   {log.details.diaperState === 'wet' ? '濕' : (log.details.diaperState === 'dirty' ? '髒' : '混合')}
                               </span>}
+                              {log.details.urineMl && <span className="text-xs bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-semibold">尿量 {log.details.urineMl}ml</span>}
                               {log.details.foods && log.details.foods.map((food, i) => (
                                   <span key={i} className="text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-normal">{food}</span>
                               ))}
                               {log.details.reaction && <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded font-bold border border-red-100 dark:border-red-900/50">反應: {log.details.reaction}</span>}
-                              {log.details.foods && log.details.foods.map((food, i) => (
-                                  <span key={i} className="text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-normal">{food}</span>
-                              ))}
-                              {log.details.reaction && <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded font-bold border border-red-100 dark:border-red-900/50">Reaction: {log.details.reaction}</span>}
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
                               {format(new Date(log.startTime), 'h:mm a')} 
@@ -495,21 +515,18 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                </div>
 
                {/* Time Inputs */}
-               {editType === 'diaper' ? (
+               {editType === 'diaper' || editType === 'solids' ? (
                    <div className="space-y-4">
                        <div className="space-y-1">
                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">時間</label>
                           <input 
                             type="datetime-local" 
-                            value={editEndTime}
-                            onChange={e => {
-                               setEditEndTime(e.target.value);
-                               setEditStartTime(e.target.value);
-                            }}
+                            value={editStartTime}
+                            onChange={e => setEditStartTime(e.target.value)}
                             className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
                           />
                        </div>
-                       <div className="space-y-1">
+                       {editType === 'diaper' && <div className="space-y-1">
                           <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">狀態</label>
                           <div className="grid grid-cols-3 gap-2">
                              {['wet', 'dirty', 'mixed'].map((type) => (
@@ -522,7 +539,7 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                                  </button>
                              ))}
                           </div>
-                       </div>
+                       </div>}
                    </div>
                ) : (
                    <div className="grid grid-cols-2 gap-4">
@@ -727,6 +744,22 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
 
                {editType === 'solids' && (
                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">副食份量</label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              min="0"
+                              max="2000"
+                              value={editDetails.amountMl ?? ''}
+                              onChange={event => setEditDetails(previous => ({ ...previous, amountMl: event.target.value ? Number(event.target.value) : undefined }))}
+                              placeholder="輸入份量"
+                              className="w-full rounded-xl border border-orange-200 bg-orange-50/50 p-3 pe-12 text-base font-bold text-slate-800 dark:border-orange-900 dark:bg-orange-950/20 dark:text-white"
+                            />
+                            <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs font-bold text-slate-400">ml</span>
+                          </div>
+                        </div>
                         <div className="space-y-2">
                              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">食物</label>
                              <div className="flex flex-wrap gap-2 mb-2">
@@ -784,6 +817,25 @@ const History: React.FC<HistoryProps> = ({ logs, setAppState }) => {
                            />
                         </div>
                    </div>
+               )}
+
+               {editType === 'diaper' && (
+                 <div className="space-y-1 border-t border-slate-100 pt-4 dark:border-slate-800">
+                   <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">尿量（可選填）</label>
+                   <div className="relative">
+                     <input
+                       type="number"
+                       inputMode="numeric"
+                       min="0"
+                       max="2000"
+                       value={editDetails.urineMl ?? ''}
+                       onChange={event => setEditDetails(previous => ({ ...previous, urineMl: event.target.value ? Number(event.target.value) : undefined }))}
+                       placeholder="輸入尿量"
+                       className="w-full rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 pe-12 text-base font-bold text-slate-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-white"
+                     />
+                     <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs font-bold text-slate-400">ml</span>
+                   </div>
+                 </div>
                )}
 
                {editType !== 'feeding' && editType !== 'pumping' && (

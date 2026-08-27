@@ -33,6 +33,7 @@ export interface LogEntry {
     side?: FeedingSide;
     amountMl?: number;
     diaperState?: 'wet' | 'dirty' | 'mixed' | 'dry';
+    urineMl?: number;
     foods?: string[];
     reaction?: string;
     notes?: string;
@@ -54,6 +55,7 @@ export interface ActiveTimer {
   pauseStartTime?: number; // If set, the timer is currently paused starting at this timestamp
   snoozeEndTime?: number; // If set, the timer is paused and will auto-resume at this timestamp
   ignoredDurationMs?: number; // Accumulated duration in ms that should be subtracted from total time
+  addedDurationMs?: number; // Manually added time in ms
 }
 
 export interface SleepGoal {

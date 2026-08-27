@@ -1,4 +1,4 @@
-import { format, differenceInMinutes, differenceInCalendarDays } from 'date-fns';
+import { format, differenceInMinutes, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { LogEntry } from './types';
 
 export const generateId = (): string => {
@@ -53,6 +53,22 @@ export const formatTimeAgoAbsolute = (timestamp: number): string => {
   return `${hours}小時 ${remainingMins}分鐘前`;
 };
 
+export const normalizeMl = (value: unknown, max = 2000): number | null => {
+  const amount = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > max) return null;
+  return Math.round(amount);
+};
+
+export const getTodayVolumeTotals = (logs: LogEntry[], now: number = Date.now()) => {
+  const dayStart = startOfDay(now).getTime();
+  return logs.reduce((totals, log) => {
+    if (log.startTime < dayStart || log.startTime > now) return totals;
+    if (log.type === 'solids') totals.solidsMl += normalizeMl(log.details.amountMl) || 0;
+    if (log.type === 'diaper') totals.urineMl += normalizeMl(log.details.urineMl) || 0;
+    return totals;
+  }, { solidsMl: 0, urineMl: 0 });
+};
+
 export interface ExportColumn {
   key: string;
   label: string;
@@ -69,6 +85,7 @@ export const downloadFile = (content: string, filename: string, type: string) =>
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 export const exportToCSV = (logs: LogEntry[], columns?: ExportColumn[]) => {
@@ -88,20 +105,26 @@ export const exportToCSV = (logs: LogEntry[], columns?: ExportColumn[]) => {
         if (l.details.side) det.push(l.details.side === 'left' ? '左' : (l.details.side === 'right' ? '右' : (l.details.side === 'both' ? '雙邊' : l.details.side)));
         if (l.details.amountMl) det.push(`${l.details.amountMl}ml`);
         if (l.details.diaperState) det.push(l.details.diaperState === 'wet' ? '濕' : (l.details.diaperState === 'dirty' ? '髒' : (l.details.diaperState === 'mixed' ? '混合' : l.details.diaperState)));
+        if (l.details.urineMl) det.push(`尿量 ${l.details.urineMl}ml`);
         return det.join('; ');
     }},
-    { key: 'notes', label: '備註', enabled: true, value: (l) => `"${(l.details.notes || '').replace(/"/g, '""')}"` }
+    { key: 'notes', label: '備註', enabled: true, value: (l) => l.details.notes || '' }
   ];
 
   const colsToUse = columns || defCols;
   const activeCols = colsToUse.filter(c => c.enabled);
 
-  const headers = activeCols.map(c => c.label).join(',');
+  const escapeCsvValue = (value: string) => {
+    if (!/[",\n\r]/.test(value)) return value;
+    return `"${value.replace(/"/g, '""')}"`;
+  };
+
+  const headers = activeCols.map(c => escapeCsvValue(c.label)).join(',');
   const rows = logs.map(log => {
-    return activeCols.map(c => c.value(log)).join(',');
+    return activeCols.map(c => escapeCsvValue(c.value(log))).join(',');
   });
 
-  const csvContent = [headers, ...rows].join('\n');
+  const csvContent = `\uFEFF${[headers, ...rows].join('\r\n')}`;
   downloadFile(csvContent, `nurturetrack_export_${format(new Date(), 'yyyyMMdd')}.csv`, 'text/csv');
 };
 

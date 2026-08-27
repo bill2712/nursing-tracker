@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { startOfWeek, startOfDay } from 'date-fns';
-import { MilkIcon, MoonIcon, ClockIcon, PencilIcon, PumpIcon, FoodIcon, DropletIcon } from './Icons';
-import { AppState, LogEntry, ActivityType, FeedingType, FeedingSide } from '../types';
-import { formatTimer, generateId, formatTimeAgo, formatTimeAgoAbsolute } from '../utils';
-import { getAverageWakeWindow } from '../services/predictionService';
+import { MilkIcon, PencilIcon, PumpIcon, FoodIcon, DropletIcon } from './Icons';
+import { AppState, LogEntry, ActivityType } from '../types';
+import { formatTimer, generateId, formatTimeAgoAbsolute, getTodayVolumeTotals, normalizeMl } from '../utils';
 
 interface TrackerProps {
   appState: AppState;
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
 }
 
-import { collection, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
-const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
+const Tracker: React.FC<TrackerProps> = ({ appState }) => {
   const [elapsed, setElapsed] = useState(0);
   const [showManualModal, setShowManualModal] = useState(false);
   
@@ -21,7 +20,9 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
   const [manualStartTime, setManualStartTime] = useState('');
   const [manualEndTime, setManualEndTime] = useState('');
   const [manualDetails, setManualDetails] = useState<LogEntry['details']>({ feedingType: 'bottle', foods: [] });
-  const [newFoodInput, setNewFoodInput] = useState('');
+  const [quickSolidMl, setQuickSolidMl] = useState('');
+  const [quickUrineMl, setQuickUrineMl] = useState('');
+  const [quickSaving, setQuickSaving] = useState<'solids' | 'diaper' | null>(null);
 
   // Active Timer Edit Modal State
   const [showActiveEditModal, setShowActiveEditModal] = useState(false);
@@ -60,14 +61,37 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     return () => clearInterval(interval);
   }, [appState.activeTimer]);
 
+  // Resume a snoozed timer when its five-minute pause expires, even if this
+  // screen was left open in the background.
+  useEffect(() => {
+    const timer = appState.activeTimer;
+    if (!timer?.snoozeEndTime || !timer.pauseStartTime) return;
+
+    const resume = async () => {
+      const resumeTime = Math.max(Date.now(), timer.snoozeEndTime as number);
+      const { pauseStartTime, snoozeEndTime, ...runningTimer } = timer;
+      await setDoc(doc(db, 'system', 'activeTimer'), {
+        ...runningTimer,
+        ignoredDurationMs: (timer.ignoredDurationMs || 0) + (resumeTime - pauseStartTime)
+      });
+    };
+
+    const remaining = timer.snoozeEndTime - Date.now();
+    if (remaining <= 0) {
+      void resume();
+      return;
+    }
+    const timeoutId = window.setTimeout(() => void resume(), remaining);
+    return () => window.clearTimeout(timeoutId);
+  }, [appState.activeTimer]);
+
   const lastActivities = useMemo(() => {
     const sorted = [...appState.logs].sort((a, b) => b.startTime - a.startTime);
     return {
       feeding: sorted.find(l => l.type === 'feeding'),
       sleep: sorted.find(l => l.type === 'sleep'),
       diaper: sorted.find(l => l.type === 'diaper'),
-      solids: sorted.find(l => l.type === 'solids'),
-      colic: sorted.find(l => l.type === 'colic')
+      solids: sorted.find(l => l.type === 'solids')
     };
   }, [appState.logs]);
 
@@ -75,12 +99,6 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     const now = Date.now();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 }).getTime();
     return appState.logs.filter(l => l.type === 'sleep' && l.startTime >= weekStart).length;
-  }, [appState.logs]);
-
-  const dailyColicCount = useMemo(() => {
-    const now = Date.now();
-    const dayStart = startOfDay(now).getTime();
-    return appState.logs.filter(l => l.type === 'colic' && l.startTime >= dayStart).length;
   }, [appState.logs]);
 
   const dailyFeedingVolume = useMemo(() => {
@@ -109,6 +127,8 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     });
     return { wet, dirty, total: diapers.length };
   }, [appState.logs]);
+
+  const dailyVolumeTotals = useMemo(() => getTodayVolumeTotals(appState.logs), [appState.logs]);
 
   const dailySnotCount = useMemo(() => {
     const now = Date.now();
@@ -147,6 +167,52 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     };
     // Use Log ID as document ID
     await setDoc(doc(db, 'logs', newLog.id), newLog);
+  };
+
+  const quickLogSolids = async () => {
+    const amountMl = normalizeMl(quickSolidMl);
+    if (!amountMl) {
+      alert('請輸入 1 至 2000 ml 的副食份量');
+      return;
+    }
+
+    setQuickSaving('solids');
+    try {
+      const newLog: LogEntry = {
+        id: generateId(),
+        type: 'solids',
+        startTime: Date.now(),
+        details: { amountMl }
+      };
+      await setDoc(doc(db, 'logs', newLog.id), newLog);
+      setQuickSolidMl('');
+    } finally {
+      setQuickSaving(null);
+    }
+  };
+
+  const quickLogDiaper = async (diaperState: 'wet' | 'dirty' | 'mixed') => {
+    const enteredUrineMl = quickUrineMl.trim() ? normalizeMl(quickUrineMl) : null;
+    if (quickUrineMl.trim() && !enteredUrineMl) {
+      alert('尿量請輸入 1 至 2000 ml');
+      return;
+    }
+
+    setQuickSaving('diaper');
+    try {
+      const details: LogEntry['details'] = { diaperState };
+      if (enteredUrineMl) details.urineMl = enteredUrineMl;
+      const newLog: LogEntry = {
+        id: generateId(),
+        type: 'diaper',
+        startTime: Date.now(),
+        details
+      };
+      await setDoc(doc(db, 'logs', newLog.id), newLog);
+      setQuickUrineMl('');
+    } finally {
+      setQuickSaving(null);
+    }
   };
 
   const updateActiveDetails = async (updates: Partial<LogEntry['details']>) => {
@@ -188,7 +254,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     const { startTime, pauseStartTime, ignoredDurationMs, addedDurationMs } = appState.activeTimer;
     
     // Calculate end time and duration
-    const effectiveEndTime = (pauseStartTime || Date.now()) + (addedDurationMs || 0);
+    const effectiveEndTime = pauseStartTime || Date.now();
     const durationSeconds = Math.floor((effectiveEndTime - startTime - (ignoredDurationMs || 0)) / 1000);
     
     if (durationSeconds > 2) {
@@ -223,10 +289,9 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     if (appState.activeTimer.pauseStartTime) {
         // RESUME
         const pausedDuration = now - appState.activeTimer.pauseStartTime;
+        const { pauseStartTime, snoozeEndTime, ...runningTimer } = appState.activeTimer;
         updatedTimer = {
-            ...appState.activeTimer,
-            pauseStartTime: undefined,
-            snoozeEndTime: undefined,
+            ...runningTimer,
             ignoredDurationMs: (appState.activeTimer.ignoredDurationMs || 0) + pausedDuration
         };
     } else {
@@ -285,26 +350,66 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
   };
 
   const handleManualSubmit = async () => {
-    if (!manualStartTime || !manualEndTime) {
-      alert("Please select start and end times");
+    const isPointEvent = manualType === 'diaper' || manualType === 'solids';
+    if (!manualStartTime || (!isPointEvent && !manualEndTime)) {
+      alert(isPointEvent ? '請選擇紀錄時間' : '請選擇開始及結束時間');
       return;
     }
 
     const start = new Date(manualStartTime).getTime();
-    const end = new Date(manualEndTime).getTime();
+    const end = isPointEvent ? undefined : new Date(manualEndTime).getTime();
 
-    if (manualType !== 'diaper' && end <= start) {
-      alert("End time must be after start time");
+    if (!Number.isFinite(start) || (!isPointEvent && (!Number.isFinite(end) || (end as number) <= start))) {
+      alert('結束時間必須遲於開始時間');
       return;
     }
+
+    if (manualDetails.amountMl !== undefined && (manualDetails.amountMl < 0 || manualDetails.amountMl > 2000)) {
+      alert('份量請輸入 0 至 2000 ml');
+      return;
+    }
+    if (manualDetails.urineMl !== undefined && (manualDetails.urineMl < 0 || manualDetails.urineMl > 2000)) {
+      alert('尿量請輸入 0 至 2000 ml');
+      return;
+    }
+
+    const details: LogEntry['details'] = { ...manualDetails };
+    if (manualType === 'feeding') {
+      details.feedingType = 'bottle';
+      delete details.diaperState;
+      delete details.urineMl;
+      delete details.foods;
+      delete details.reaction;
+    } else if (manualType === 'diaper') {
+      details.diaperState ||= 'wet';
+      delete details.amountMl;
+      delete details.feedingType;
+      delete details.foods;
+      delete details.reaction;
+    } else if (manualType === 'solids') {
+      delete details.diaperState;
+      delete details.urineMl;
+      delete details.feedingType;
+    } else {
+      delete details.amountMl;
+      delete details.diaperState;
+      delete details.urineMl;
+      delete details.feedingType;
+      delete details.foods;
+      delete details.reaction;
+    }
+    Object.keys(details).forEach(key => {
+      if (details[key as keyof LogEntry['details']] === undefined) {
+        delete details[key as keyof LogEntry['details']];
+      }
+    });
 
     const newLog: LogEntry = {
       id: generateId(),
       type: manualType,
       startTime: start,
-      endTime: end,
-      durationSeconds: Math.floor((end - start) / 1000),
-      details: manualType === 'feeding' ? { ...manualDetails, feedingType: 'bottle' } : manualDetails // Ensure feedingType is bottle for manual feeding
+      ...(end ? { endTime: end, durationSeconds: Math.floor((end - start) / 1000) } : {}),
+      details
     };
 
     await setDoc(doc(db, 'logs', newLog.id), newLog);
@@ -318,29 +423,16 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
     setManualEndTime(localIso);
     setManualType('feeding');
     setManualDetails({ feedingType: 'bottle', foods: [] }); // Default to bottle
-    setNewFoodInput('');
     setShowManualModal(true);
   };
 
-  const setAllDaySleep = () => {
-    const now = new Date();
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const toLocalIso = (d: Date) => new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-    
-    setManualStartTime(toLocalIso(startOfDay));
-    setManualEndTime(toLocalIso(now));
-  };
-
-  const addDurationToManual = (minutes: number) => {
-      if (!manualStartTime) return;
-      const start = new Date(manualStartTime).getTime();
-      const end = start + minutes * 60 * 1000;
-      
-      const endDate = new Date(end);
-      const localIso = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-      setManualEndTime(localIso);
+  const selectManualType = (type: ActivityType) => {
+    setManualType(type);
+    setManualDetails(
+      type === 'feeding' ? { feedingType: 'bottle' } :
+      type === 'diaper' ? { diaperState: 'wet' } :
+      type === 'solids' ? { foods: [] } : {}
+    );
   };
 
   if (appState.activeTimer) {
@@ -391,7 +483,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
         
         <div className="text-center relative">
           <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-1">
-            {isSnoozed ? '貪睡中...' : (isPaused ? '計時暫停' : (isFeeding ? '餵奶時間' : '沖涼中'))}
+            {isSnoozed ? '貪睡中...' : (isPaused ? '計時暫停' : (isFeeding ? '餵奶時間' : (isPumping ? '擠奶時間' : '沖涼中')))}
           </h2>
           <div className={`flex items-center justify-center space-x-2 transition-all duration-300 ${isPaused || isSnoozed ? 'opacity-70' : 'opacity-100'}`}>
               <div className={`text-5xl font-mono font-medium tracking-wider transition-all duration-300 ${isPaused || isSnoozed ? 'text-slate-500 dark:text-slate-500' : 'text-slate-800 dark:text-white'} ${(isPaused || isSnoozed) ? 'animate-pulse' : ''}`}>
@@ -633,69 +725,77 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
   return (
     <div className="flex flex-col h-full p-3 sm:p-4 space-y-3 overflow-y-auto pb-24">
       {/* Hide Header internally or remove it per user request */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">今日概覽</p>
+          <p className="text-sm font-black text-slate-700 dark:text-slate-200">照顧紀錄</p>
+        </div>
         <button 
           onClick={initManualEntry}
-          className="text-[11px] font-bold text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-900/20 px-2.5 py-1 rounded-lg hover:bg-pink-100 dark:hover:bg-pink-900/30 transition-colors"
+          className="min-h-10 text-xs font-bold text-pink-700 dark:text-pink-300 bg-pink-50 dark:bg-pink-900/20 px-3 py-2 rounded-xl hover:bg-pink-100 dark:hover:bg-pink-900/30 transition-colors"
         >
           + 補登紀錄
         </button>
       </div>
 
       {/* Last Activity Dashboard */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-        <div className="bg-white dark:bg-slate-900 px-1.5 py-2.5 sm:p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between text-center h-full">
-           <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">上次餵奶</span>
-           <span className="text-sm sm:text-lg font-black text-pink-600 dark:text-pink-400 leading-tight">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-28">
+           <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次餵奶</span>
+           <span className="text-xl font-black text-pink-600 dark:text-pink-400 leading-tight mt-2">
              {lastActivities.feeding ? formatTimeAgoAbsolute(lastActivities.feeding.endTime || lastActivities.feeding.startTime) : '--'}
            </span>
-           <div className="mt-2 space-y-0.5">
-             <span className="block text-xs font-black text-pink-500/80 dark:text-pink-400/80">
+           <div className="mt-2">
+             <span className="block text-sm font-black text-pink-500/80 dark:text-pink-400/80">
                {lastActivities.feeding?.details?.amountMl ? `${lastActivities.feeding.details.amountMl}ml` : ' '}
              </span>
-             <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate">
+             <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400">
                今日 {dailyFeedingCount}次 / {dailyFeedingVolume}ml
              </span>
            </div>
         </div>
         
-        <div className="bg-white dark:bg-slate-900 px-1.5 py-2.5 sm:p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between text-center h-full">
-           <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">上次沖涼</span>
-           <span className="text-sm sm:text-lg font-black text-indigo-600 dark:text-indigo-400 leading-tight">
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-28">
+           <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次沖涼</span>
+           <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 leading-tight mt-2">
              {lastActivities.sleep ? formatTimeAgoAbsolute(lastActivities.sleep.endTime || lastActivities.sleep.startTime) : '--'}
            </span>
            <div className="mt-2 space-y-0.5">
-             <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 truncate">
+             <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">
                本週 {weeklyBathCount} 次
              </span>
            </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 px-1.5 py-2.5 sm:p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between text-center h-full">
-           <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">上次換片</span>
-           <span className="text-sm sm:text-lg font-black text-emerald-600 dark:text-emerald-400 leading-tight">
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-28">
+           <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次換片</span>
+           <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 leading-tight mt-2">
              {lastActivities.diaper ? formatTimeAgoAbsolute(lastActivities.diaper.startTime) : '--'}
            </span>
            <div className="mt-2 space-y-0.5">
-             <span className="block text-xs font-black text-emerald-500/80 dark:text-emerald-400/80">
+             <span className="block text-sm font-black text-emerald-500/80 dark:text-emerald-400/80">
                {lastActivities.diaper?.details?.diaperState ? (
                  lastActivities.diaper.details.diaperState === 'wet' ? '濕' : lastActivities.diaper.details.diaperState === 'dirty' ? '髒' : '混合'
                ) : ' '}
+               {lastActivities.diaper?.details?.urineMl ? ` · ${lastActivities.diaper.details.urineMl}ml` : ''}
              </span>
-             <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate">
-               今: {dailyDiaperCounts.wet}濕 {dailyDiaperCounts.dirty}髒
+             <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400">
+               今日 {dailyDiaperCounts.wet}濕 {dailyDiaperCounts.dirty}髒 · {dailyVolumeTotals.urineMl}ml
              </span>
            </div>
         </div>
         
-        <div className="bg-white dark:bg-slate-900 px-1.5 py-2.5 sm:p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center justify-between text-center h-full">
-           <span className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-2">上次 Colic</span>
-           <span className="text-sm sm:text-lg font-black text-rose-600 dark:text-rose-400 leading-tight">
-             {lastActivities.colic ? formatTimeAgoAbsolute(lastActivities.colic.startTime) : '--'}
+        <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-28">
+           <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次副食</span>
+           <span className="text-xl font-black text-orange-600 dark:text-orange-400 leading-tight mt-2">
+             {lastActivities.solids ? formatTimeAgoAbsolute(lastActivities.solids.startTime) : '--'}
            </span>
            <div className="mt-2 space-y-0.5">
-             <span className="block text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 truncate">
-               今日 {dailyColicCount} 次
+             <span className="block text-sm font-black text-orange-500/80 dark:text-orange-400/80">
+               {lastActivities.solids?.details.amountMl ? `${lastActivities.solids.details.amountMl}ml` : ' '}
+             </span>
+             <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400">
+               今日副食 {dailyVolumeTotals.solidsMl}ml
              </span>
            </div>
         </div>
@@ -810,51 +910,67 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
             </div>
          </div>
 
-         {/* Quick Add Diaper */}
-         <div>
-           <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mb-1.5 uppercase tracking-wider">快速換片</p>
-            <div className="grid grid-cols-3 gap-2">
-               {['wet', 'dirty', 'mixed'].map((type) => (
-                   <button
-                       key={type}
-                       onClick={async () => {
-                           const newLog: LogEntry = {
-                               id: generateId(),
-                               type: 'diaper',
-                               startTime: Date.now(),
-                               details: { diaperState: type as any }
-                           };
-                           await setDoc(doc(db, 'logs', newLog.id), newLog);
-                       }}
-                       className="bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 py-2.5 rounded-xl text-[12px] font-black tracking-wide capitalize transition-all active:scale-95 shadow-sm flex justify-center items-center space-x-1"
-                   >
-                       <span>{type === 'wet' ? '💧 濕' : (type === 'dirty' ? '💩 髒' : '✨ 混合')}</span>
-                   </button>
-               ))}
-            </div>
+         {/* Quick Add Solids */}
+         <div className="rounded-2xl border border-orange-100 bg-orange-50/70 p-3 dark:border-orange-900/40 dark:bg-orange-950/20">
+           <div className="mb-2 flex items-center justify-between gap-2">
+             <p className="text-xs font-black text-orange-800 dark:text-orange-300">🥣 快速記錄副食</p>
+             <span className="text-[11px] font-bold text-orange-700/70 dark:text-orange-300/70">今日 {dailyVolumeTotals.solidsMl}ml</span>
+           </div>
+           <div className="flex gap-2">
+             <label className="relative min-w-0 flex-1">
+               <span className="sr-only">副食份量</span>
+               <input
+                 type="number"
+                 inputMode="numeric"
+                 min="1"
+                 max="2000"
+                 value={quickSolidMl}
+                 onChange={event => setQuickSolidMl(event.target.value)}
+                 onKeyDown={event => { if (event.key === 'Enter') quickLogSolids(); }}
+                 placeholder="輸入份量"
+                 className="min-h-11 w-full rounded-xl border border-orange-200 bg-white px-3 pe-10 text-base font-bold text-slate-800 placeholder:text-slate-400 dark:border-orange-900 dark:bg-slate-900 dark:text-white"
+               />
+               <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs font-bold text-slate-400">ml</span>
+             </label>
+             <button
+               onClick={quickLogSolids}
+               disabled={quickSaving !== null}
+               className="min-h-11 shrink-0 rounded-xl bg-orange-500 px-4 text-sm font-black text-white shadow-sm transition hover:bg-orange-600 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+             >
+               {quickSaving === 'solids' ? '儲存中' : '記錄'}
+             </button>
+           </div>
          </div>
 
-         {/* Quick Add Colic */}
-         <div>
-            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mb-1.5 uppercase tracking-wider">快速 COLIC</p>
+         {/* Quick Add Diaper */}
+         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+           <div className="mb-2 flex items-center justify-between gap-2">
+             <p className="text-xs font-black text-emerald-800 dark:text-emerald-300">快速換片</p>
+             <span className="text-[11px] font-bold text-emerald-700/70 dark:text-emerald-300/70">今日 {dailyDiaperCounts.total}次 · {dailyVolumeTotals.urineMl}ml</span>
+           </div>
+           <label className="relative mb-2 block">
+             <span className="sr-only">今次尿量，可選填</span>
+             <input
+               type="number"
+               inputMode="numeric"
+               min="1"
+               max="2000"
+               value={quickUrineMl}
+               onChange={event => setQuickUrineMl(event.target.value)}
+               placeholder="今次尿量（可選填）"
+               className="min-h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 pe-10 text-base font-bold text-slate-800 placeholder:text-sm placeholder:font-medium placeholder:text-slate-400 dark:border-emerald-900 dark:bg-slate-900 dark:text-white"
+             />
+             <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs font-bold text-slate-400">ml</span>
+           </label>
             <div className="grid grid-cols-3 gap-2">
-               {[15, 30, 60].map((mins) => (
+               {(['wet', 'dirty', 'mixed'] as const).map((type) => (
                    <button
-                       key={mins}
-                       onClick={async () => {
-                           const newLog: LogEntry = {
-                               id: generateId(),
-                               type: 'colic',
-                               startTime: Date.now() - (mins * 60 * 1000),
-                               endTime: Date.now(),
-                               durationSeconds: mins * 60,
-                               details: {}
-                           };
-                           await setDoc(doc(db, 'logs', newLog.id), newLog);
-                       }}
-                       className="bg-rose-100 dark:bg-rose-900/40 hover:bg-rose-200 dark:hover:bg-rose-900/60 text-rose-800 dark:text-rose-300 py-2.5 rounded-xl text-[12px] font-black tracking-wide transition-all active:scale-95 shadow-sm flex justify-center items-center space-x-1"
+                       key={type}
+                       onClick={() => quickLogDiaper(type)}
+                       disabled={quickSaving !== null}
+                       className="min-h-11 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 py-2.5 rounded-xl text-[12px] font-black tracking-wide transition-all active:scale-95 shadow-sm flex justify-center items-center disabled:cursor-wait disabled:opacity-60"
                    >
-                       <span>{mins === 60 ? '1 小時' : `${mins} 分鐘`}</span>
+                       <span>{type === 'wet' ? '💧 濕' : (type === 'dirty' ? '💩 髒' : '✨ 混合')}</span>
                    </button>
                ))}
             </div>
@@ -879,7 +995,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                     {['feeding', 'sleep', 'diaper', 'solids'].map((t) => (
                       <button 
                         key={t}
-                        onClick={() => setManualType(t as ActivityType)}
+                        onClick={() => selectManualType(t as ActivityType)}
                         className={`py-2 px-3 text-xs sm:text-sm font-bold rounded-lg transition-all ${manualType === t ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                       >{
                         t === 'feeding' ? '餵奶' : 
@@ -891,21 +1007,18 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                  
                  {/* Special "All Day Sleep" Shortcut removed for bath */}
                  {/* Time Inputs */}
-                 {manualType === 'diaper' ? (
+                 {manualType === 'diaper' || manualType === 'solids' ? (
                      <div className="space-y-4">
                          <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">時間</label>
                             <input 
                               type="datetime-local" 
-                              value={manualEndTime}
-                              onChange={e => {
-                                 setManualEndTime(e.target.value);
-                                 setManualStartTime(e.target.value);
-                              }}
+                              value={manualStartTime}
+                              onChange={e => setManualStartTime(e.target.value)}
                               className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-sm"
                             />
                          </div>
-                         <div className="space-y-1">
+                         {manualType === 'diaper' && <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">狀態</label>
                             <div className="grid grid-cols-3 gap-2">
                                {['wet', 'dirty', 'mixed'].map((type) => (
@@ -918,7 +1031,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                                    </button>
                                ))}
                             </div>
-                         </div>
+                         </div>}
                      </div>
                  ) : (
                      <div className="grid grid-cols-2 gap-4">
@@ -1006,6 +1119,22 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
 
                  {manualType === 'solids' && (
                     <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">副食份量</label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              min="0"
+                              max="2000"
+                              value={manualDetails.amountMl ?? ''}
+                              onChange={e => setManualDetails(previous => ({ ...previous, amountMl: e.target.value ? Number(e.target.value) : undefined }))}
+                              placeholder="輸入份量"
+                              className="w-full rounded-xl border border-orange-200 bg-orange-50/50 p-3 pe-12 text-base font-bold text-slate-800 dark:border-orange-900 dark:bg-orange-950/20 dark:text-white"
+                            />
+                            <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs font-bold text-slate-400">ml</span>
+                          </div>
+                        </div>
                         <div className="space-y-2">
                              <div className="flex flex-wrap gap-2 mb-2">
                                 {manualDetails.foods && manualDetails.foods.map((food, i) => (
@@ -1063,6 +1192,25 @@ const Tracker: React.FC<TrackerProps> = ({ appState, setAppState }) => {
                            />
                         </div>
                     </div>
+                 )}
+
+                 {manualType === 'diaper' && (
+                   <div className="space-y-1 border-t border-slate-100 pt-4 dark:border-slate-800">
+                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">尿量（可選填）</label>
+                     <div className="relative">
+                       <input
+                         type="number"
+                         inputMode="numeric"
+                         min="0"
+                         max="2000"
+                         value={manualDetails.urineMl ?? ''}
+                         onChange={e => setManualDetails(previous => ({ ...previous, urineMl: e.target.value ? Number(e.target.value) : undefined }))}
+                         placeholder="輸入尿量"
+                         className="w-full rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 pe-12 text-base font-bold text-slate-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-white"
+                       />
+                       <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs font-bold text-slate-400">ml</span>
+                     </div>
+                   </div>
                  )}
 
                  {manualType === 'feeding' && (

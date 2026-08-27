@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { AppState, LogEntry, ActivityType } from './types';
-import { STORAGE_KEY } from './constants';
 import Tracker from './components/Tracker';
-import History from './components/History';
-import Analysis from './components/Analysis';
-import Settings from './components/Settings';
-import Growth from './components/Growth';
-import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, RulerIcon, HeartIcon, SnowflakeIcon } from './components/Icons';
-import Health from './components/Health';
-import DevelopmentChecklist from './components/DevelopmentChecklist';
+import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, HeartIcon } from './components/Icons';
 import { INITIAL_VACCINES, INITIAL_MILESTONES } from './data/healthData';
+
+const History = lazy(() => import('./components/History'));
+const Analysis = lazy(() => import('./components/Analysis'));
+const Settings = lazy(() => import('./components/Settings'));
+const Growth = lazy(() => import('./components/Growth'));
+const Health = lazy(() => import('./components/Health'));
+const DevelopmentChecklist = lazy(() => import('./components/DevelopmentChecklist'));
 
 type View = 'tracker' | 'history' | 'analysis' | 'checklist' | 'settings' | 'health';
 
@@ -217,13 +217,15 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`h-screen w-full flex flex-col mx-auto max-w-md shadow-2xl overflow-hidden relative ${appState.darkMode ? 'dark' : ''}`}>
+    <div className={`h-[100dvh] w-full flex flex-col mx-auto max-w-md sm:my-3 sm:h-[calc(100dvh-1.5rem)] sm:rounded-2xl shadow-2xl overflow-hidden relative ${appState.darkMode ? 'dark' : ''}`}>
       <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200">
           <main className="flex-1 overflow-y-auto no-scrollbar relative">
-             {renderView()}
+             <Suspense fallback={<div className="flex min-h-full items-center justify-center p-6 text-sm font-semibold text-slate-400">載入頁面中…</div>}>
+               {renderView()}
+             </Suspense>
           </main>
 
-          <nav className="h-20 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-around items-center px-2 z-10 shrink-0 safe-area-pb transition-colors duration-200">
+          <nav aria-label="主要導覽" className="min-h-20 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-around items-center px-1 z-10 shrink-0 safe-area-pb transition-colors duration-200">
             <NavButton 
               active={currentView === 'tracker'} 
               onClick={() => setCurrentView('tracker')} 
@@ -269,12 +271,14 @@ const App: React.FC = () => {
 const NavButton = ({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${active ? 'text-pink-600 dark:text-pink-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+    aria-current={active ? 'page' : undefined}
+    aria-label={label}
+    className={`flex flex-col items-center justify-center min-w-0 min-h-16 py-2 space-y-1 rounded-xl transition-colors ${active ? 'text-pink-600 dark:text-pink-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
   >
     <div className={`p-1 rounded-xl transition-all ${active ? 'bg-pink-50 dark:bg-pink-900/20' : ''}`}>
       {React.cloneElement(icon as React.ReactElement, { className: "w-6 h-6" })}
     </div>
-    <span className="text-[10px] font-medium">{label}</span>
+    <span className="text-[11px] font-semibold truncate">{label}</span>
   </button>
 );
 
