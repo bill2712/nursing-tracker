@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getGrowthViewMaxAge, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl } from './utils';
+import { getFoodIntakeTotals, getGrowthViewMaxAge, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl } from './utils';
 import type { LogEntry } from './types';
 
 describe('normalizeMl', () => {
@@ -29,6 +29,19 @@ describe('getTodayVolumeTotals', () => {
     ];
 
     expect(getTodayVolumeTotals(logs, now)).toEqual({ solidsMl: 80, urineMl: 35 });
+  });
+});
+
+describe('getFoodIntakeTotals', () => {
+  it('adds feeding and solids volumes while ignoring unrelated or invalid amounts', () => {
+    const logs: LogEntry[] = [
+      { id: 'milk', type: 'feeding', startTime: 1, details: { amountMl: 120 } },
+      { id: 'solids', type: 'solids', startTime: 2, details: { amountMl: 65 } },
+      { id: 'diaper', type: 'diaper', startTime: 3, details: { diaperState: 'wet', urineMl: 85 } },
+      { id: 'invalid', type: 'feeding', startTime: 4, details: { amountMl: -20 } }
+    ];
+
+    expect(getFoodIntakeTotals(logs)).toEqual({ feedingMl: 120, solidsMl: 65, totalMl: 185 });
   });
 });
 

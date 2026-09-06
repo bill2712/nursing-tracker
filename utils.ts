@@ -69,6 +69,17 @@ export const getTodayVolumeTotals = (logs: LogEntry[], now: number = Date.now())
   }, { solidsMl: 0, urineMl: 0 });
 };
 
+export const getFoodIntakeTotals = (logs: LogEntry[]) => {
+  const totals = logs.reduce((result, log) => {
+    const amountMl = normalizeMl(log.details.amountMl) || 0;
+    if (log.type === 'feeding') result.feedingMl += amountMl;
+    if (log.type === 'solids') result.solidsMl += amountMl;
+    return result;
+  }, { feedingMl: 0, solidsMl: 0 });
+
+  return { ...totals, totalMl: totals.feedingMl + totals.solidsMl };
+};
+
 export interface ExportColumn {
   key: string;
   label: string;

@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { eachDayOfInterval, endOfDay, format, isWithinInterval, startOfDay, subDays } from 'date-fns';
 import { AppState } from '../types';
+import { getFoodIntakeTotals } from '../utils';
 import { SparklesIcon } from './Icons';
 import { getGeminiInsights } from '../services/geminiService';
 
@@ -51,13 +52,13 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       start: startOfDay(day), end: endOfDay(day)
     }));
     const feedingLogs = logsInDay.filter(log => log.type === 'feeding');
-    const dailyFeedingMl = feedingLogs.reduce((total, log) => total + (log.details.amountMl || 0), 0);
+    const foodTotals = getFoodIntakeTotals(logsInDay);
+    const dailyFeedingMl = foodTotals.feedingMl;
     const dailySleepSeconds = logsInDay
       .filter(log => log.type === 'sleep')
       .reduce((total, log) => total + (log.durationSeconds || 0), 0);
     const solidsLogs = logsInDay.filter(log => log.type === 'solids');
-    const solidsMl = solidsLogs
-      .reduce((total, log) => total + (log.details.amountMl || 0), 0);
+    const solidsMl = foodTotals.solidsMl;
     const urineMl = logsInDay
       .filter(log => log.type === 'diaper')
       .reduce((total, log) => total + (log.details.urineMl || 0), 0);
@@ -73,7 +74,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       }
     });
 
-    const totalFoodMl = dailyFeedingMl + solidsMl;
+    const totalFoodMl = foodTotals.totalMl;
     const hasFoodLogs = feedingLogs.length > 0 || solidsLogs.length > 0;
 
     return {
