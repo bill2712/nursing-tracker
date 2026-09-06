@@ -171,14 +171,15 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
       <section aria-label="今日重點" className="grid grid-cols-2 gap-3">
         {[
-          { label: '今日奶量', value: todayData.feedingMl, unit: 'ml', color: 'text-pink-600', bg: 'bg-pink-50 dark:bg-pink-950/30' },
-          { label: '今日餵奶', value: todayData.feedingCount, unit: '次', color: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-950/30' },
-          { label: '今日副食', value: todayData.solidsMl, unit: 'ml', color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
-          { label: '今日尿量', value: todayData.urineMl, unit: 'ml', color: 'text-cyan-600', bg: 'bg-cyan-50 dark:bg-cyan-950/30' }
+          { label: '今日奶量', value: todayData.feedingMl, unit: 'ml', secondary: `總食量 ${todayData.totalFoodMl} ml（奶＋副食）`, color: 'text-pink-600', bg: 'bg-pink-50 dark:bg-pink-950/30' },
+          { label: '今日餵奶', value: todayData.feedingCount, unit: '次', secondary: null, color: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-950/30' },
+          { label: '今日副食', value: todayData.solidsMl, unit: 'ml', secondary: null, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
+          { label: '今日尿量', value: todayData.urineMl, unit: 'ml', secondary: null, color: 'text-cyan-600', bg: 'bg-cyan-50 dark:bg-cyan-950/30' }
         ].map(item => (
           <div key={item.label} className={`ui-card ${item.bg} rounded-3xl border border-white/70 p-4 dark:border-white/5`}>
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.label}</p>
             <p className={`mt-1 text-2xl font-black tabular-nums ${item.color}`}>{item.value}<span className="ml-1 text-xs font-bold">{item.unit}</span></p>
+            {item.secondary && <p className="mt-1.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400">{item.secondary}</p>}
           </div>
         ))}
       </section>

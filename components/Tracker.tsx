@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { startOfWeek, startOfDay } from 'date-fns';
 import { MilkIcon, PencilIcon, PumpIcon, FoodIcon, DropletIcon } from './Icons';
 import { AppState, LogEntry, ActivityType } from '../types';
-import { formatTimer, generateId, formatTimeAgoAbsolute, getTodayVolumeTotals, normalizeMl } from '../utils';
+import { formatTimer, generateId, formatTimeAgoAbsolute, getTodayFoodIntakeTotals, getTodayVolumeTotals, normalizeMl } from '../utils';
 
 interface TrackerProps {
   appState: AppState;
@@ -101,14 +101,6 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
     return appState.logs.filter(l => l.type === 'sleep' && l.startTime >= weekStart).length;
   }, [appState.logs]);
 
-  const dailyFeedingVolume = useMemo(() => {
-    const now = Date.now();
-    const dayStart = startOfDay(now).getTime();
-    return appState.logs
-      .filter(l => l.type === 'feeding' && l.startTime >= dayStart)
-      .reduce((acc, curr) => acc + (curr.details.amountMl || 0), 0);
-  }, [appState.logs]);
-
   const dailyFeedingCount = useMemo(() => {
     const now = Date.now();
     const dayStart = startOfDay(now).getTime();
@@ -129,6 +121,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
   }, [appState.logs]);
 
   const dailyVolumeTotals = useMemo(() => getTodayVolumeTotals(appState.logs), [appState.logs]);
+  const dailyFoodTotals = useMemo(() => getTodayFoodIntakeTotals(appState.logs), [appState.logs]);
 
   const dailySnotCount = useMemo(() => {
     const now = Date.now();
@@ -753,7 +746,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                {lastActivities.feeding?.details?.amountMl ? `${lastActivities.feeding.details.amountMl}ml` : ' '}
              </span>
              <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400">
-               今日 {dailyFeedingCount}次 / {dailyFeedingVolume}ml
+               今日 {dailyFeedingCount}次 / {dailyFoodTotals.feedingMl}ml
+             </span>
+             <span className="mt-0.5 block text-[10px] font-black text-emerald-600 dark:text-emerald-400">
+               總食量 {dailyFoodTotals.totalMl}ml（奶＋副食）
              </span>
            </div>
         </div>

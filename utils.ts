@@ -80,6 +80,11 @@ export const getFoodIntakeTotals = (logs: LogEntry[]) => {
   return { ...totals, totalMl: totals.feedingMl + totals.solidsMl };
 };
 
+export const getTodayFoodIntakeTotals = (logs: LogEntry[], now: number = Date.now()) => {
+  const dayStart = startOfDay(now).getTime();
+  return getFoodIntakeTotals(logs.filter(log => log.startTime >= dayStart && log.startTime <= now));
+};
+
 export interface ExportColumn {
   key: string;
   label: string;

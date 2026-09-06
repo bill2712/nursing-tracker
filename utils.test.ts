@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getFoodIntakeTotals, getGrowthViewMaxAge, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl } from './utils';
+import { getFoodIntakeTotals, getGrowthViewMaxAge, getTodayFoodIntakeTotals, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl } from './utils';
 import type { LogEntry } from './types';
 
 describe('normalizeMl', () => {
@@ -42,6 +42,21 @@ describe('getFoodIntakeTotals', () => {
     ];
 
     expect(getFoodIntakeTotals(logs)).toEqual({ feedingMl: 120, solidsMl: 65, totalMl: 185 });
+  });
+
+  it('limits the homepage total to records from today up to the current time', () => {
+    const now = new Date(2026, 8, 6, 12, 0).getTime();
+    const today = new Date(2026, 8, 6, 8, 0).getTime();
+    const yesterday = new Date(2026, 8, 5, 23, 59).getTime();
+    const tomorrow = new Date(2026, 8, 7, 8, 0).getTime();
+    const logs: LogEntry[] = [
+      { id: 'milk-today', type: 'feeding', startTime: today, details: { amountMl: 120 } },
+      { id: 'solids-today', type: 'solids', startTime: today, details: { amountMl: 65 } },
+      { id: 'milk-yesterday', type: 'feeding', startTime: yesterday, details: { amountMl: 90 } },
+      { id: 'milk-tomorrow', type: 'feeding', startTime: tomorrow, details: { amountMl: 100 } }
+    ];
+
+    expect(getTodayFoodIntakeTotals(logs, now)).toEqual({ feedingMl: 120, solidsMl: 65, totalMl: 185 });
   });
 });
 
