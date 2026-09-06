@@ -55,8 +55,8 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
     const dailySleepSeconds = logsInDay
       .filter(log => log.type === 'sleep')
       .reduce((total, log) => total + (log.durationSeconds || 0), 0);
-    const solidsMl = logsInDay
-      .filter(log => log.type === 'solids')
+    const solidsLogs = logsInDay.filter(log => log.type === 'solids');
+    const solidsMl = solidsLogs
       .reduce((total, log) => total + (log.details.amountMl || 0), 0);
     const urineMl = logsInDay
       .filter(log => log.type === 'diaper')
@@ -73,12 +73,17 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       }
     });
 
+    const totalFoodMl = dailyFeedingMl + solidsMl;
+    const hasFoodLogs = feedingLogs.length > 0 || solidsLogs.length > 0;
+
     return {
       fullDate: format(day, 'MMM d'),
       shortDate: format(day, 'M/d'),
       feedingMl: dailyFeedingMl,
       feedingMlPlot: feedingLogs.length > 0 ? dailyFeedingMl : null,
       feedingCount: feedingLogs.length,
+      totalFoodMl,
+      totalFoodMlPlot: hasFoodLogs ? totalFoodMl : null,
       recommendedMl: babyGrowthPlan[format(day, 'MM/dd')] ?? null,
       wetDiapers, dirtyDiapers, solidsMl, urineMl,
       sleepHours: Number((dailySleepSeconds / 3600).toFixed(1)),
@@ -98,6 +103,17 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
   const yAxisProps = {
     width: 42, tick: { fill: tickColor, fontSize: 11, fontWeight: 600 },
     tickLine: false, axisLine: false
+  };
+
+  const TotalFoodTooltip = ({ active, payload }: any) => {
+    const data = payload?.[0]?.payload;
+    if (!active || !data) return null;
+    return <ChartTooltip date={data.shortDate} rows={[
+      { label: '總食量', value: `${data.totalFoodMl} ml`, color: 'text-emerald-600 dark:text-emerald-400' },
+      { label: '奶量', value: `${data.feedingMl} ml`, color: 'text-pink-600 dark:text-pink-400' },
+      { label: '副食', value: `${data.solidsMl} ml`, color: 'text-orange-600 dark:text-orange-400' },
+      ...(data.recommendedMl === null ? [] : [{ label: '建議', value: `${data.recommendedMl} ml`, color: 'text-amber-600 dark:text-amber-400' }])
+    ]} />;
   };
 
   const FeedingTooltip = ({ active, payload }: any) => {
@@ -167,6 +183,55 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       </section>
 
       <section className="space-y-4">
+        <article className={chartCardClass}>
+          <div className="mb-3">
+            <h2 className="text-base font-black text-slate-800 dark:text-slate-100">每日食量 <span className="text-xs text-slate-400">(ml)</span></h2>
+            <div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-2"><span className="h-1 w-6 rounded-full bg-emerald-500" />總食量 (奶量+副食)</span>
+              <span className="flex items-center gap-2"><span className="w-6 border-t-2 border-dashed border-amber-500" />建議量</span>
+            </div>
+          </div>
+          <div className="h-72" role="img" aria-label="過去十天每日總食量折線圖">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trendData} margin={{ top: 8, right: 4, bottom: 4, left: 0 }} accessibilityLayer>
+                <defs>
+                  <linearGradient id="total-food-area" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 5" vertical={false} stroke={gridColor} />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisProps} />
+                <Tooltip content={<TotalFoodTooltip />} cursor={{ stroke: '#cbd5e1', strokeDasharray: '4 4' }} />
+                <Area type="monotone" dataKey="totalFoodMlPlot" stroke="#10b981" fill="url(#total-food-area)" strokeWidth={4} connectNulls dot={{ fill: '#fff', stroke: '#10b981', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+                <Line type="monotone" dataKey="recommendedMl" stroke="#f59e0b" strokeWidth={3} strokeDasharray="7 5" dot={false} connectNulls />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <details className="group mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+            <summary className="cursor-pointer list-none rounded-xl py-2 text-center text-sm font-bold text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+              查看每日數字 <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-180">⌄</span>
+            </summary>
+            <div className="mt-2 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800">
+              <div className="grid grid-cols-4 bg-slate-50 px-3 py-2 text-center text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                <span>日期</span><span>總食量</span><span>建議</span><span>差距</span>
+              </div>
+              {trendData.map(item => {
+                const difference = item.recommendedMl === null ? null : item.totalFoodMl - item.recommendedMl;
+                return (
+                  <div key={item.fullDate} className="grid grid-cols-4 border-t border-slate-100 px-3 py-2 text-center text-xs font-semibold dark:border-slate-800">
+                    <span className="text-slate-600 dark:text-slate-300">{item.shortDate}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">{item.totalFoodMl || '—'}</span>
+                    <span className="text-amber-600">{item.recommendedMl ?? '—'}</span>
+                    <span className={difference === null ? 'text-slate-400' : difference >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{difference === null ? '—' : difference > 0 ? `+${difference}` : difference}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        </article>
+
         <article className={chartCardClass}>
           <div className="mb-3">
             <h2 className="text-base font-black text-slate-800 dark:text-slate-100">每日奶量 <span className="text-xs text-slate-400">(ml)</span></h2>
