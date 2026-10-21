@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getFoodIntakeTotals, getGrowthViewMaxAge, getTrackerSummary, getTodayFoodIntakeTotals, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl } from './utils';
+import { getFoodIntakeTotals, getGrowthViewMaxAge, getTrackerSummary, getFinishedTimerTimes, getTodayFoodIntakeTotals, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl } from './utils';
 import type { LogEntry } from './types';
 
 describe('normalizeMl', () => {
@@ -105,5 +105,28 @@ describe('getTrackerSummary', () => {
     expect(summary.dailyFoodTotals).toEqual(getTodayFoodIntakeTotals(logs, now));
     expect(summary.dailySnotCount).toBe(1);
     expect(summary.dailyMouthCount).toBe(0);
+  });
+});
+
+describe('getFinishedTimerTimes', () => {
+  const minute = 60_000;
+  const start = new Date(2026, 7, 26, 10, 0).getTime();
+
+  it('counts manually added minutes in the saved duration and start time', () => {
+    const now = start + 5 * minute;
+    const result = getFinishedTimerTimes({ startTime: start, addedDurationMs: 10 * minute }, now);
+    expect(result.durationSeconds).toBe(15 * 60);
+    expect(result.startTime).toBe(start - 10 * minute);
+    expect(result.endTime).toBe(now);
+  });
+
+  it('leaves out paused time and ends at the pause when still paused', () => {
+    const pauseStartTime = start + 20 * minute;
+    const result = getFinishedTimerTimes(
+      { startTime: start, ignoredDurationMs: 4 * minute, pauseStartTime, addedDurationMs: 2 * minute },
+      start + 60 * minute
+    );
+    expect(result.endTime).toBe(pauseStartTime);
+    expect(result.durationSeconds).toBe((20 - 4 + 2) * 60);
   });
 });

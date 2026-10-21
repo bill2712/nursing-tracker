@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MilkIcon, PencilIcon, PumpIcon, DropletIcon } from './Icons';
 import { AppState, LogEntry, ActivityType } from '../types';
-import { formatTimer, generateId, formatTimeAgoAbsolute, normalizeMl, getTrackerSummary } from '../utils';
+import { formatTimer, generateId, formatTimeAgoAbsolute, normalizeMl, getTrackerSummary, getFinishedTimerTimes } from '../utils';
 import { saveLogWithUndo, saveLog } from '../services/logWrites';
 import { showToast, vibrate } from './Toast';
 
@@ -207,18 +207,14 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
   const stopTimer = async () => {
     if (!appState.activeTimer) return;
 
-    const { startTime, pauseStartTime, ignoredDurationMs, addedDurationMs } = appState.activeTimer;
-    
-    // Calculate end time and duration
-    const effectiveEndTime = pauseStartTime || Date.now();
-    const durationSeconds = Math.floor((effectiveEndTime - startTime - (ignoredDurationMs || 0)) / 1000);
-    
+    const { startTime, endTime, durationSeconds } = getFinishedTimerTimes(appState.activeTimer);
+
     if (durationSeconds > 2) {
       const newLog: LogEntry = {
         id: generateId(),
         type: appState.activeTimer.type,
-        startTime: appState.activeTimer.startTime,
-        endTime: effectiveEndTime,
+        startTime,
+        endTime,
         durationSeconds,
         details: appState.activeTimer.details
       };

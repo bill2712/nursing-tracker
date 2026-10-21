@@ -1,5 +1,5 @@
 import { format, differenceInMinutes, differenceInCalendarDays, startOfDay, startOfWeek } from 'date-fns';
-import { LogEntry } from './types';
+import { ActiveTimer, LogEntry } from './types';
 
 export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
@@ -82,6 +82,20 @@ export const getFoodIntakeTotals = (logs: LogEntry[]) => {
 export const getTodayFoodIntakeTotals = (logs: LogEntry[], now: number = Date.now()) => {
   const dayStart = startOfDay(now).getTime();
   return getFoodIntakeTotals(logs.filter(log => log.startTime >= dayStart && log.startTime <= now));
+};
+
+// Times to save when a timer is finished. Matches what the timer shows:
+// paused time is left out and manually added minutes are counted. Added time
+// moves the start earlier so the saved start/end span shows it too.
+export const getFinishedTimerTimes = (
+  timer: Pick<ActiveTimer, 'startTime' | 'pauseStartTime' | 'ignoredDurationMs' | 'addedDurationMs'>,
+  now: number = Date.now()
+) => {
+  const endTime = timer.pauseStartTime || now;
+  const addedMs = Math.max(0, timer.addedDurationMs || 0);
+  const startTime = timer.startTime - addedMs;
+  const durationSeconds = Math.floor((endTime - startTime - (timer.ignoredDurationMs || 0)) / 1000);
+  return { startTime, endTime, durationSeconds };
 };
 
 export interface TrackerSummary {
