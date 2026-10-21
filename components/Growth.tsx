@@ -362,12 +362,12 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '3 3' }} />
              
              {/* Reference Lines (WHO) */}
-             <Line data={chartData.ref} type="monotone" dataKey="p97" stroke="#059669" strokeDasharray="7 5" dot={false} strokeWidth={3} strokeOpacity={0.75} name="第 97 百分位" />
-             <Line data={chartData.ref} type="monotone" dataKey="p50" stroke="#2563eb" strokeDasharray="7 5" dot={false} strokeWidth={3} strokeOpacity={0.75} name="第 50 百分位" />
-             <Line data={chartData.ref} type="monotone" dataKey="p3" stroke="#ea580c" strokeDasharray="7 5" dot={false} strokeWidth={3} strokeOpacity={0.75} name="第 3 百分位" />
+             <Line isAnimationActive={false} data={chartData.ref} type="monotone" dataKey="p97" stroke="#059669" strokeDasharray="7 5" dot={false} strokeWidth={3} strokeOpacity={0.75} name="第 97 百分位" />
+             <Line isAnimationActive={false} data={chartData.ref} type="monotone" dataKey="p50" stroke="#2563eb" strokeDasharray="7 5" dot={false} strokeWidth={3} strokeOpacity={0.75} name="第 50 百分位" />
+             <Line isAnimationActive={false} data={chartData.ref} type="monotone" dataKey="p3" stroke="#ea580c" strokeDasharray="7 5" dot={false} strokeWidth={3} strokeOpacity={0.75} name="第 3 百分位" />
 
              {/* User Data */}
-             <Line 
+             <Line isAnimationActive={false}
                 data={chartData.user} 
                 type="monotone" 
                 dataKey="value" 
@@ -446,7 +446,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
 
       {/* Add/Edit Modal */}
       {isAdding && (
-         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in" onClick={() => setIsAdding(false)}>
+         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/55 animate-fade-in" onClick={() => setIsAdding(false)}>
              <div className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in" onClick={e => e.stopPropagation()}>
                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                      <h3 className="font-bold text-slate-700 dark:text-slate-200">{editingId ? 'Edit Record' : 'Log Measurement'}</h3>

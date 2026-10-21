@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
 } from 'recharts';
-import { eachDayOfInterval, endOfDay, format, isWithinInterval, startOfDay, subDays } from 'date-fns';
-import { AppState } from '../types';
+import { eachDayOfInterval, format, subDays } from 'date-fns';
+import { AppState, LogEntry } from '../types';
 import { getFoodIntakeTotals } from '../utils';
 import { SparklesIcon } from './Icons';
-import { getGeminiInsights } from '../services/geminiService';
 
 interface AnalysisProps {
   appState: AppState;
@@ -42,15 +41,34 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
 
   const handleGetInsight = async () => {
     setLoading(true);
-    const text = await getGeminiInsights(appState.logs);
-    setInsight(text);
-    setLoading(false);
+    try {
+      // Load the AI SDK only when it is actually used.
+      const { getGeminiInsights } = await import('../services/geminiService');
+      setInsight(await getGeminiInsights(appState.logs));
+    } catch (error) {
+      console.error(error);
+      setInsight('暫時未能取得 AI 分析，請稍後再試。');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const trendData = eachDayOfInterval({ start: subDays(today, 9), end: today }).map(day => {
-    const logsInDay = appState.logs.filter(log => isWithinInterval(log.startTime, {
-      start: startOfDay(day), end: endOfDay(day)
-    }));
+  const todayKey = format(today, 'yyyy-MM-dd');
+  const trendData = useMemo(() => {
+  const end = new Date(todayKey + 'T00:00:00');
+  const days = eachDayOfInterval({ start: subDays(end, 9), end });
+  // Bucket the logs by local day once instead of scanning every log for every day.
+  const logsByDay = new Map<string, LogEntry[]>();
+  const firstDay = days[0].getTime();
+  for (const log of appState.logs) {
+    if (log.startTime < firstDay) continue;
+    const key = format(log.startTime, 'yyyy-MM-dd');
+    const bucket = logsByDay.get(key);
+    if (bucket) bucket.push(log); else logsByDay.set(key, [log]);
+  }
+
+  return days.map(day => {
+    const logsInDay = logsByDay.get(format(day, 'yyyy-MM-dd')) || [];
     const feedingLogs = logsInDay.filter(log => log.type === 'feeding');
     const foodTotals = getFoodIntakeTotals(logsInDay);
     const dailyFeedingMl = foodTotals.feedingMl;
@@ -91,6 +109,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
       sleepSeconds: dailySleepSeconds
     };
   });
+  }, [appState.logs, todayKey]);
 
   const todayData = trendData[trendData.length - 1];
   const tickColor = appState.darkMode ? '#94a3b8' : '#64748b';
@@ -164,9 +183,11 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
   return (
     <div className="page-shell space-y-5 p-4 pb-24 sm:p-5 sm:pb-24">
       <header className="page-header">
-        <p className="text-xs font-bold tracking-[0.18em] text-pink-500">過去 10 天</p>
-        <h1 className="mt-1 text-2xl font-black text-slate-800 dark:text-slate-100">數據分析</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">先看今日重點，再向下比較每日趨勢。</p>
+        <div>
+          <p className="page-eyebrow">過去 10 天</p>
+          <h1 className="page-title mt-1">數據分析</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">先看今日重點，再向下比較每日趨勢。</p>
+        </div>
       </header>
 
       <section aria-label="今日重點" className="grid grid-cols-2 gap-3">
@@ -206,8 +227,8 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
                 <XAxis {...xAxisProps} />
                 <YAxis {...yAxisProps} />
                 <Tooltip content={<TotalFoodTooltip />} cursor={{ stroke: '#cbd5e1', strokeDasharray: '4 4' }} />
-                <Area type="monotone" dataKey="totalFoodMlPlot" stroke="#10b981" fill="url(#total-food-area)" strokeWidth={4} connectNulls dot={{ fill: '#fff', stroke: '#10b981', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
-                <Line type="monotone" dataKey="recommendedMl" stroke="#f59e0b" strokeWidth={3} strokeDasharray="7 5" dot={false} connectNulls />
+                <Area isAnimationActive={false} type="monotone" dataKey="totalFoodMlPlot" stroke="#10b981" fill="url(#total-food-area)" strokeWidth={4} connectNulls dot={{ fill: '#fff', stroke: '#10b981', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+                <Line isAnimationActive={false} type="monotone" dataKey="recommendedMl" stroke="#f59e0b" strokeWidth={3} strokeDasharray="7 5" dot={false} connectNulls />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -255,8 +276,8 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
                 <XAxis {...xAxisProps} />
                 <YAxis {...yAxisProps} />
                 <Tooltip content={<FeedingTooltip />} cursor={{ stroke: '#cbd5e1', strokeDasharray: '4 4' }} />
-                <Area type="monotone" dataKey="feedingMlPlot" stroke="#ec4899" fill="url(#feeding-area)" strokeWidth={4} connectNulls dot={{ fill: '#fff', stroke: '#ec4899', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
-                <Line type="monotone" dataKey="recommendedMl" stroke="#f59e0b" strokeWidth={3} strokeDasharray="7 5" dot={false} connectNulls />
+                <Area isAnimationActive={false} type="monotone" dataKey="feedingMlPlot" stroke="#ec4899" fill="url(#feeding-area)" strokeWidth={4} connectNulls dot={{ fill: '#fff', stroke: '#ec4899', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+                <Line isAnimationActive={false} type="monotone" dataKey="recommendedMl" stroke="#f59e0b" strokeWidth={3} strokeDasharray="7 5" dot={false} connectNulls />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -292,7 +313,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
                 <XAxis {...xAxisProps} />
                 <YAxis {...yAxisProps} allowDecimals={false} />
                 <Tooltip content={<CountTooltip />} cursor={{ fill: appState.darkMode ? '#1e293b' : '#f8fafc' }} />
-                <Bar dataKey="feedingCount" radius={[8, 8, 2, 2]} maxBarSize={24}>
+                <Bar isAnimationActive={false} dataKey="feedingCount" radius={[8, 8, 2, 2]} maxBarSize={24}>
                   {trendData.map((item, index) => <Cell key={item.fullDate} fill={index === trendData.length - 1 ? '#7c3aed' : '#c084fc'} />)}
                 </Bar>
               </BarChart>
@@ -312,8 +333,8 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
                 <XAxis {...xAxisProps} />
                 <YAxis {...yAxisProps} allowDecimals={false} />
                 <Tooltip content={<DiaperTooltip />} />
-                <Line type="monotone" dataKey="wetDiapers" stroke="#0284c7" strokeWidth={4} dot={{ fill: '#fff', stroke: '#0284c7', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
-                <Line type="monotone" dataKey="dirtyDiapers" stroke="#d97706" strokeWidth={4} dot={{ fill: '#fff', stroke: '#d97706', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+                <Line isAnimationActive={false} type="monotone" dataKey="wetDiapers" stroke="#0284c7" strokeWidth={4} dot={{ fill: '#fff', stroke: '#0284c7', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+                <Line isAnimationActive={false} type="monotone" dataKey="dirtyDiapers" stroke="#d97706" strokeWidth={4} dot={{ fill: '#fff', stroke: '#d97706', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -334,8 +355,8 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
                 <XAxis {...xAxisProps} />
                 <YAxis {...yAxisProps} />
                 <Tooltip content={<VolumeTooltip />} cursor={{ fill: appState.darkMode ? '#1e293b' : '#f8fafc' }} />
-                <Bar dataKey="solidsMl" fill="#f97316" radius={[7, 7, 2, 2]} maxBarSize={18} />
-                <Bar dataKey="urineMl" fill="#06b6d4" radius={[7, 7, 2, 2]} maxBarSize={18} />
+                <Bar isAnimationActive={false} dataKey="solidsMl" fill="#f97316" radius={[7, 7, 2, 2]} maxBarSize={18} />
+                <Bar isAnimationActive={false} dataKey="urineMl" fill="#06b6d4" radius={[7, 7, 2, 2]} maxBarSize={18} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -350,7 +371,7 @@ const Analysis: React.FC<AnalysisProps> = ({ appState }) => {
                 <XAxis {...xAxisProps} />
                 <YAxis {...yAxisProps} />
                 <Tooltip content={<BathTooltip />} />
-                <Line type="monotone" dataKey="sleepHours" stroke="#4f46e5" strokeWidth={4} dot={{ fill: '#fff', stroke: '#4f46e5', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
+                <Line isAnimationActive={false} type="monotone" dataKey="sleepHours" stroke="#4f46e5" strokeWidth={4} dot={{ fill: '#fff', stroke: '#4f46e5', strokeWidth: 3, r: 5 }} activeDot={{ r: 7 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
