@@ -1,6 +1,12 @@
 /// <reference types="vite/client" />
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import {
+  Firestore,
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
+} from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
@@ -14,7 +20,18 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+
+// Keep a local IndexedDB copy of the data so the app opens instantly with the
+// last known logs and keeps working on a weak connection.
+let db: Firestore;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+} catch {
+  db = getFirestore(app);
+}
+
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 

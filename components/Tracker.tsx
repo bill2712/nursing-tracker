@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { startOfWeek, startOfDay } from 'date-fns';
-import { MilkIcon, PencilIcon, PumpIcon, FoodIcon, DropletIcon } from './Icons';
+import { MilkIcon, PencilIcon, PumpIcon, DropletIcon } from './Icons';
 import { AppState, LogEntry, ActivityType } from '../types';
-import { formatTimer, generateId, formatTimeAgoAbsolute, getTodayFoodIntakeTotals, getTodayVolumeTotals, normalizeMl } from '../utils';
+import { formatTimer, generateId, formatTimeAgoAbsolute, normalizeMl, getTrackerSummary, getFinishedTimerTimes } from '../utils';
+import { saveLogWithUndo, saveLog } from '../services/logWrites';
+import { showToast, vibrate } from './Toast';
 
 interface TrackerProps {
   appState: AppState;
@@ -22,7 +23,17 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
   const [manualDetails, setManualDetails] = useState<LogEntry['details']>({ feedingType: 'bottle', foods: [] });
   const [quickSolidMl, setQuickSolidMl] = useState('');
   const [quickUrineMl, setQuickUrineMl] = useState('');
-  const [quickSaving, setQuickSaving] = useState<'solids' | 'diaper' | null>(null);
+  // Re-render every 30s so "X 分鐘前" labels and today's totals stay current.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 30000);
+    const onVisible = () => { if (document.visibilityState === 'visible') setNow(Date.now()); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   // Active Timer Edit Modal State
   const [showActiveEditModal, setShowActiveEditModal] = useState(false);
@@ -85,59 +96,17 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
     return () => window.clearTimeout(timeoutId);
   }, [appState.activeTimer]);
 
-  const lastActivities = useMemo(() => {
-    const sorted = [...appState.logs].sort((a, b) => b.startTime - a.startTime);
-    return {
-      feeding: sorted.find(l => l.type === 'feeding'),
-      sleep: sorted.find(l => l.type === 'sleep'),
-      diaper: sorted.find(l => l.type === 'diaper'),
-      solids: sorted.find(l => l.type === 'solids')
-    };
-  }, [appState.logs]);
-
-  const weeklyBathCount = useMemo(() => {
-    const now = Date.now();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 }).getTime();
-    return appState.logs.filter(l => l.type === 'sleep' && l.startTime >= weekStart).length;
-  }, [appState.logs]);
-
-  const dailyFeedingCount = useMemo(() => {
-    const now = Date.now();
-    const dayStart = startOfDay(now).getTime();
-    return appState.logs.filter(l => l.type === 'feeding' && l.startTime >= dayStart).length;
-  }, [appState.logs]);
-
-  const dailyDiaperCounts = useMemo(() => {
-    const now = Date.now();
-    const dayStart = startOfDay(now).getTime();
-    const diapers = appState.logs.filter(l => l.type === 'diaper' && l.startTime >= dayStart);
-    let wet = 0; let dirty = 0;
-    diapers.forEach(d => {
-      if (d.details.diaperState === 'wet') wet++;
-      if (d.details.diaperState === 'dirty') dirty++;
-      if (d.details.diaperState === 'mixed') { wet++; dirty++; }
-    });
-    return { wet, dirty, total: diapers.length };
-  }, [appState.logs]);
-
-  const dailyVolumeTotals = useMemo(() => getTodayVolumeTotals(appState.logs), [appState.logs]);
-  const dailyFoodTotals = useMemo(() => getTodayFoodIntakeTotals(appState.logs), [appState.logs]);
-
-  const dailySnotCount = useMemo(() => {
-    const now = Date.now();
-    const dayStart = startOfDay(now).getTime();
-    return appState.logs.filter(l => l.type === 'clear_snot' && l.startTime >= dayStart).length;
-  }, [appState.logs]);
-
-  const dailyMouthCount = useMemo(() => {
-    const now = Date.now();
-    const dayStart = startOfDay(now).getTime();
-    return appState.logs.filter(l => l.type === 'clean_mouth' && l.startTime >= dayStart).length;
-  }, [appState.logs]);
+  // One pass over the logs for every number shown on this screen.
+  const summary = useMemo(() => getTrackerSummary(appState.logs, now), [appState.logs, now]);
+  const {
+    lastActivities, weeklyBathCount, dailyFeedingCount, dailyDiaperCounts,
+    dailyVolumeTotals, dailyFoodTotals, dailySnotCount, dailyMouthCount
+  } = summary;
 
   // --- Firestore Actions ---
 
   const startTimer = async (type: ActivityType) => {
+    vibrate();
     const newTimer = {
       type,
       startTime: Date.now(),
@@ -147,7 +116,11 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
     await setDoc(doc(db, 'system', 'activeTimer'), newTimer);
   };
 
-  const quickLogSleep = async (minutes: number) => {
+  const logPointEvent = (type: ActivityType, message: string) => {
+    saveLogWithUndo({ id: generateId(), type, startTime: Date.now(), details: {} }, message);
+  };
+
+  const quickLogSleep = (minutes: number) => {
     const now = Date.now();
     const start = now - (minutes * 60 * 1000);
     const newLog: LogEntry = {
@@ -158,54 +131,44 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
         durationSeconds: minutes * 60,
         details: {}
     };
-    // Use Log ID as document ID
-    await setDoc(doc(db, 'logs', newLog.id), newLog);
+    saveLogWithUndo(newLog, `已記錄沖涼 ${minutes} 分鐘`);
   };
 
-  const quickLogSolids = async () => {
+  const quickLogSolids = () => {
     const amountMl = normalizeMl(quickSolidMl);
     if (!amountMl) {
       alert('請輸入 1 至 2000 ml 的副食份量');
       return;
     }
 
-    setQuickSaving('solids');
-    try {
-      const newLog: LogEntry = {
-        id: generateId(),
-        type: 'solids',
-        startTime: Date.now(),
-        details: { amountMl }
-      };
-      await setDoc(doc(db, 'logs', newLog.id), newLog);
-      setQuickSolidMl('');
-    } finally {
-      setQuickSaving(null);
-    }
+    const newLog: LogEntry = {
+      id: generateId(),
+      type: 'solids',
+      startTime: Date.now(),
+      details: { amountMl }
+    };
+    saveLogWithUndo(newLog, `已記錄副食 ${amountMl}ml`);
+    setQuickSolidMl('');
   };
 
-  const quickLogDiaper = async (diaperState: 'wet' | 'dirty' | 'mixed') => {
+  const quickLogDiaper = (diaperState: 'wet' | 'dirty' | 'mixed') => {
     const enteredUrineMl = quickUrineMl.trim() ? normalizeMl(quickUrineMl) : null;
     if (quickUrineMl.trim() && !enteredUrineMl) {
       alert('尿量請輸入 1 至 2000 ml');
       return;
     }
 
-    setQuickSaving('diaper');
-    try {
-      const details: LogEntry['details'] = { diaperState };
-      if (enteredUrineMl) details.urineMl = enteredUrineMl;
-      const newLog: LogEntry = {
-        id: generateId(),
-        type: 'diaper',
-        startTime: Date.now(),
-        details
-      };
-      await setDoc(doc(db, 'logs', newLog.id), newLog);
-      setQuickUrineMl('');
-    } finally {
-      setQuickSaving(null);
-    }
+    const details: LogEntry['details'] = { diaperState };
+    if (enteredUrineMl) details.urineMl = enteredUrineMl;
+    const newLog: LogEntry = {
+      id: generateId(),
+      type: 'diaper',
+      startTime: Date.now(),
+      details
+    };
+    const label = diaperState === 'wet' ? '濕' : diaperState === 'dirty' ? '髒' : '混合';
+    saveLogWithUndo(newLog, `已記錄換片（${label}${enteredUrineMl ? ` · ${enteredUrineMl}ml` : ''}）`);
+    setQuickUrineMl('');
   };
 
   const updateActiveDetails = async (updates: Partial<LogEntry['details']>) => {
@@ -244,25 +207,25 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
   const stopTimer = async () => {
     if (!appState.activeTimer) return;
 
-    const { startTime, pauseStartTime, ignoredDurationMs, addedDurationMs } = appState.activeTimer;
-    
-    // Calculate end time and duration
-    const effectiveEndTime = pauseStartTime || Date.now();
-    const durationSeconds = Math.floor((effectiveEndTime - startTime - (ignoredDurationMs || 0)) / 1000);
-    
+    const { startTime, endTime, durationSeconds } = getFinishedTimerTimes(appState.activeTimer);
+
     if (durationSeconds > 2) {
       const newLog: LogEntry = {
         id: generateId(),
         type: appState.activeTimer.type,
-        startTime: appState.activeTimer.startTime,
-        endTime: effectiveEndTime,
+        startTime,
+        endTime,
         durationSeconds,
         details: appState.activeTimer.details
       };
       
-      // Batch write: Add log AND clear timer
-      await setDoc(doc(db, 'logs', newLog.id), newLog);
+      saveLog(newLog);
       await deleteDoc(doc(db, 'system', 'activeTimer'));
+      vibrate();
+      const mins = Math.max(1, Math.round(durationSeconds / 60));
+      const label = newLog.type === 'feeding' ? '餵奶' : newLog.type === 'pumping' ? '擠奶' : '沖涼';
+      const amount = newLog.details?.amountMl ? ` · ${newLog.details.amountMl}ml` : '';
+      showToast({ message: `已記錄${label} ${mins} 分鐘${amount}` });
     } else {
       // Just clear timer if too short
       await deleteDoc(doc(db, 'system', 'activeTimer'));
@@ -342,7 +305,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
     await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
   };
 
-  const handleManualSubmit = async () => {
+  const handleManualSubmit = () => {
     const isPointEvent = manualType === 'diaper' || manualType === 'solids';
     if (!manualStartTime || (!isPointEvent && !manualEndTime)) {
       alert(isPointEvent ? '請選擇紀錄時間' : '請選擇開始及結束時間');
@@ -405,8 +368,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
       details
     };
 
-    await setDoc(doc(db, 'logs', newLog.id), newLog);
+    saveLog(newLog);
     setShowManualModal(false);
+    vibrate();
+    showToast({ message: '已補登紀錄' });
   };
 
   const initManualEntry = () => {
@@ -457,7 +422,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
              
              {/* Visual Overlay for Paused/Snoozed */}
              {(isPaused || isSnoozed) && (
-                 <div className="absolute inset-0 flex items-center justify-center bg-white/40 dark:bg-black/40 rounded-full backdrop-blur-[1px]">
+                 <div className="absolute inset-0 flex items-center justify-center bg-white/40 dark:bg-black/40 rounded-full">
                      <span className={`font-black text-xs uppercase tracking-widest px-2 py-1 rounded bg-white dark:bg-slate-900 shadow-sm
                         ${isSnoozed ? 'text-amber-600 dark:text-amber-400 animate-pulse' : 'text-slate-600 dark:text-slate-300 animate-pulse'}
                      `}>
@@ -739,7 +704,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
         <div className="ui-card activity-card activity-card--feeding p-3.5 rounded-3xl flex flex-col justify-between min-h-28">
            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次餵奶</span>
            <span className="text-xl font-black text-pink-600 dark:text-pink-400 leading-tight mt-2">
-             {lastActivities.feeding ? formatTimeAgoAbsolute(lastActivities.feeding.endTime || lastActivities.feeding.startTime) : '--'}
+             {lastActivities.feeding ? formatTimeAgoAbsolute(lastActivities.feeding.endTime || lastActivities.feeding.startTime, now) : '--'}
            </span>
            <div className="mt-2">
              <span className="block text-sm font-black text-pink-500/80 dark:text-pink-400/80">
@@ -757,7 +722,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
         <div className="ui-card activity-card activity-card--bath p-3.5 rounded-3xl flex flex-col justify-between min-h-28">
            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次沖涼</span>
            <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 leading-tight mt-2">
-             {lastActivities.sleep ? formatTimeAgoAbsolute(lastActivities.sleep.endTime || lastActivities.sleep.startTime) : '--'}
+             {lastActivities.sleep ? formatTimeAgoAbsolute(lastActivities.sleep.endTime || lastActivities.sleep.startTime, now) : '--'}
            </span>
            <div className="mt-2 space-y-0.5">
              <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1">
@@ -769,7 +734,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
         <div className="ui-card activity-card activity-card--diaper p-3.5 rounded-3xl flex flex-col justify-between min-h-28">
            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次換片</span>
            <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 leading-tight mt-2">
-             {lastActivities.diaper ? formatTimeAgoAbsolute(lastActivities.diaper.startTime) : '--'}
+             {lastActivities.diaper ? formatTimeAgoAbsolute(lastActivities.diaper.startTime, now) : '--'}
            </span>
            <div className="mt-2 space-y-0.5">
              <span className="block text-sm font-black text-emerald-500/80 dark:text-emerald-400/80">
@@ -787,7 +752,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
         <div className="ui-card activity-card activity-card--solids p-3.5 rounded-3xl flex flex-col justify-between min-h-28">
            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">上次副食</span>
            <span className="text-xl font-black text-orange-600 dark:text-orange-400 leading-tight mt-2">
-             {lastActivities.solids ? formatTimeAgoAbsolute(lastActivities.solids.startTime) : '--'}
+             {lastActivities.solids ? formatTimeAgoAbsolute(lastActivities.solids.startTime, now) : '--'}
            </span>
            <div className="mt-2 space-y-0.5">
              <span className="block text-sm font-black text-orange-500/80 dark:text-orange-400/80">
@@ -867,15 +832,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
             <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mb-1.5 uppercase tracking-wider">每日任務</p>
             <div className="grid grid-cols-2 gap-2">
                <button
-                   onClick={async () => {
-                       const newLog: LogEntry = {
-                           id: generateId(),
-                           type: 'clear_snot',
-                           startTime: Date.now(),
-                           details: {}
-                       };
-                       await setDoc(doc(db, 'logs', newLog.id), newLog);
-                   }}
+                   onClick={() => logPointEvent('clear_snot', '已記錄清鼻涕')}
                    className={`py-2 px-3 rounded-xl text-[13px] font-black transition-all flex justify-between items-center active:scale-95 shadow-sm ${dailySnotCount >= 2 ? 'bg-sky-500 text-white shadow-sky-200 dark:shadow-none' : 'bg-sky-50 dark:bg-sky-900/30 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300'}`}
                >
                    <span className="flex items-center space-x-1.5">
@@ -887,15 +844,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                    </span>
                </button>
                <button
-                   onClick={async () => {
-                       const newLog: LogEntry = {
-                           id: generateId(),
-                           type: 'clean_mouth',
-                           startTime: Date.now(),
-                           details: {}
-                       };
-                       await setDoc(doc(db, 'logs', newLog.id), newLog);
-                   }}
+                   onClick={() => logPointEvent('clean_mouth', '已記錄清潔口腔')}
                    className={`py-2 px-3 rounded-xl text-[13px] font-black transition-all flex justify-between items-center active:scale-95 shadow-sm ${dailyMouthCount >= 1 ? 'bg-teal-500 text-white shadow-teal-200 dark:shadow-none' : 'bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300'}`}
                >
                    <span className="flex items-center space-x-1.5">
@@ -933,10 +882,9 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
              </label>
              <button
                onClick={quickLogSolids}
-               disabled={quickSaving !== null}
-               className="min-h-11 shrink-0 rounded-xl bg-orange-500 px-4 text-sm font-black text-white shadow-sm transition hover:bg-orange-600 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+               className="min-h-11 shrink-0 rounded-xl bg-orange-500 px-4 text-sm font-black text-white shadow-sm transition hover:bg-orange-600 active:scale-95"
              >
-               {quickSaving === 'solids' ? '儲存中' : '記錄'}
+               記錄
              </button>
            </div>
          </div>
@@ -966,7 +914,6 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                    <button
                        key={type}
                        onClick={() => quickLogDiaper(type)}
-                       disabled={quickSaving !== null}
                        className="min-h-11 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 py-2.5 rounded-xl text-[12px] font-black tracking-wide transition-all active:scale-95 shadow-sm flex justify-center items-center disabled:cursor-wait disabled:opacity-60"
                    >
                        <span>{type === 'wet' ? '💧 濕' : (type === 'dirty' ? '💩 髒' : '✨ 混合')}</span>

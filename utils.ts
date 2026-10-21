@@ -1,5 +1,5 @@
-import { format, differenceInMinutes, differenceInCalendarDays, startOfDay } from 'date-fns';
-import { LogEntry } from './types';
+import { format, differenceInMinutes, differenceInCalendarDays, startOfDay, startOfWeek } from 'date-fns';
+import { ActiveTimer, LogEntry } from './types';
 
 export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
@@ -40,8 +40,7 @@ export const formatTimeAgo = (timestamp: number): string => {
   return `${hours}小時 ${remainingMins}分鐘前`;
 };
 
-export const formatTimeAgoAbsolute = (timestamp: number): string => {
-  const now = Date.now();
+export const formatTimeAgoAbsolute = (timestamp: number, now: number = Date.now()): string => {
   const mins = Math.max(0, differenceInMinutes(now, timestamp));
   
   if (mins < 1) return '剛剛';
@@ -83,6 +82,87 @@ export const getFoodIntakeTotals = (logs: LogEntry[]) => {
 export const getTodayFoodIntakeTotals = (logs: LogEntry[], now: number = Date.now()) => {
   const dayStart = startOfDay(now).getTime();
   return getFoodIntakeTotals(logs.filter(log => log.startTime >= dayStart && log.startTime <= now));
+};
+
+// Times to save when a timer is finished. Matches what the timer shows:
+// paused time is left out and manually added minutes are counted. Added time
+// moves the start earlier so the saved start/end span shows it too.
+export const getFinishedTimerTimes = (
+  timer: Pick<ActiveTimer, 'startTime' | 'pauseStartTime' | 'ignoredDurationMs' | 'addedDurationMs'>,
+  now: number = Date.now()
+) => {
+  const endTime = timer.pauseStartTime || now;
+  const addedMs = Math.max(0, timer.addedDurationMs || 0);
+  const startTime = timer.startTime - addedMs;
+  const durationSeconds = Math.floor((endTime - startTime - (timer.ignoredDurationMs || 0)) / 1000);
+  return { startTime, endTime, durationSeconds };
+};
+
+export interface TrackerSummary {
+  lastActivities: Partial<Record<'feeding' | 'sleep' | 'diaper' | 'solids', LogEntry>>;
+  weeklyBathCount: number;
+  dailyFeedingCount: number;
+  dailyDiaperCounts: { wet: number; dirty: number; total: number };
+  dailyVolumeTotals: { solidsMl: number; urineMl: number };
+  dailyFoodTotals: { feedingMl: number; solidsMl: number; totalMl: number };
+  dailySnotCount: number;
+  dailyMouthCount: number;
+}
+
+// Everything the home screen shows, computed in a single pass over the logs.
+export const getTrackerSummary = (logs: LogEntry[], now: number = Date.now()): TrackerSummary => {
+  const dayStart = startOfDay(now).getTime();
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 }).getTime();
+  const summary: TrackerSummary = {
+    lastActivities: {},
+    weeklyBathCount: 0,
+    dailyFeedingCount: 0,
+    dailyDiaperCounts: { wet: 0, dirty: 0, total: 0 },
+    dailyVolumeTotals: { solidsMl: 0, urineMl: 0 },
+    dailyFoodTotals: { feedingMl: 0, solidsMl: 0, totalMl: 0 },
+    dailySnotCount: 0,
+    dailyMouthCount: 0
+  };
+
+  for (const log of logs) {
+    if (log.type === 'feeding' || log.type === 'sleep' || log.type === 'diaper' || log.type === 'solids') {
+      const previous = summary.lastActivities[log.type];
+      if (!previous || log.startTime > previous.startTime) summary.lastActivities[log.type] = log;
+    }
+    if (log.type === 'sleep' && log.startTime >= weekStart) summary.weeklyBathCount++;
+    if (log.startTime < dayStart) continue;
+
+    const inTodaySoFar = log.startTime <= now;
+    const details = log.details || {};
+    switch (log.type) {
+      case 'feeding':
+        summary.dailyFeedingCount++;
+        if (inTodaySoFar) summary.dailyFoodTotals.feedingMl += normalizeMl(details.amountMl) || 0;
+        break;
+      case 'solids':
+        if (inTodaySoFar) {
+          const amount = normalizeMl(details.amountMl) || 0;
+          summary.dailyFoodTotals.solidsMl += amount;
+          summary.dailyVolumeTotals.solidsMl += amount;
+        }
+        break;
+      case 'diaper':
+        summary.dailyDiaperCounts.total++;
+        if (details.diaperState === 'wet' || details.diaperState === 'mixed') summary.dailyDiaperCounts.wet++;
+        if (details.diaperState === 'dirty' || details.diaperState === 'mixed') summary.dailyDiaperCounts.dirty++;
+        if (inTodaySoFar) summary.dailyVolumeTotals.urineMl += normalizeMl(details.urineMl) || 0;
+        break;
+      case 'clear_snot':
+        summary.dailySnotCount++;
+        break;
+      case 'clean_mouth':
+        summary.dailyMouthCount++;
+        break;
+    }
+  }
+
+  summary.dailyFoodTotals.totalMl = summary.dailyFoodTotals.feedingMl + summary.dailyFoodTotals.solidsMl;
+  return summary;
 };
 
 export interface ExportColumn {

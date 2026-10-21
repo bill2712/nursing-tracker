@@ -6,7 +6,7 @@
   :root {
     color-scheme: light;
     --app-canvas: #f7f8fc;
-    --app-surface: rgb(255 255 255 / 82%);
+    --app-surface: #ffffff;
     --app-surface-strong: #ffffff;
     --app-line: rgb(226 232 240 / 82%);
     --app-text: #182238;
@@ -47,12 +47,14 @@
 }
 
 @layer components {
+  /* Performance note: avoid backdrop-filter on large or repeated elements.
+     Blurring what is behind every card forces the phone to repaint the whole
+     page on each scroll frame, which made the app feel laggy. */
   .app-shell {
     isolation: isolate;
     border: 1px solid rgb(255 255 255 / 72%);
-    background: rgb(247 248 252 / 78%);
-    box-shadow: 0 28px 90px rgb(43 54 88 / 18%), inset 0 1px 0 rgb(255 255 255 / 75%);
-    backdrop-filter: blur(20px) saturate(125%);
+    background: var(--app-canvas);
+    box-shadow: 0 28px 90px rgb(43 54 88 / 18%);
   }
 
   .app-frame {
@@ -63,7 +65,10 @@
     background:
       radial-gradient(circle at 8% 4%, rgb(244 114 182 / 9%), transparent 26rem),
       radial-gradient(circle at 96% 36%, rgb(99 102 241 / 8%), transparent 24rem),
-      linear-gradient(180deg, rgb(255 255 255 / 50%), rgb(248 250 252 / 70%));
+      var(--app-canvas);
+    background-attachment: local;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .page-shell {
@@ -96,11 +101,10 @@
   }
 
   .ui-card {
-    border: 1px solid rgb(255 255 255 / 85%);
+    border: 1px solid var(--app-line);
     border-radius: var(--app-radius-card);
     background: var(--app-surface);
     box-shadow: var(--app-shadow-card);
-    backdrop-filter: blur(15px) saturate(115%);
   }
 
   .activity-card,
@@ -108,9 +112,9 @@
   .quick-panel {
     position: relative;
     overflow: hidden;
-    border: 1px solid rgb(255 255 255 / 80%);
+    border: 1px solid var(--app-line);
+    background-color: var(--app-surface);
     box-shadow: var(--app-shadow-card);
-    backdrop-filter: blur(14px) saturate(115%);
   }
 
   .activity-card::before {
@@ -175,7 +179,6 @@
     border-radius: 1rem;
     background: rgb(226 232 240 / 60%);
     box-shadow: inset 0 1px 2px rgb(15 23 42 / 4%);
-    backdrop-filter: blur(10px);
   }
 
   .bottom-nav {
@@ -183,9 +186,8 @@
     margin: 0 0.55rem 0.55rem;
     border: 1px solid rgb(255 255 255 / 80%);
     border-radius: 1.4rem;
-    background: rgb(255 255 255 / 82%);
+    background: rgb(255 255 255 / 97%);
     box-shadow: 0 16px 38px rgb(44 51 84 / 14%), inset 0 1px 0 rgb(255 255 255 / 80%);
-    backdrop-filter: blur(22px) saturate(150%);
   }
 
   .nav-button {
@@ -245,9 +247,8 @@
     align-items: flex-end;
     justify-content: center;
     padding: 0;
-    background: rgb(15 23 42 / 44%);
-    backdrop-filter: blur(9px);
-    animation: fade-in 180ms ease-out;
+    background: rgb(15 23 42 / 55%);
+    animation: fade-in 160ms ease-out;
   }
 
   .modal-sheet {
@@ -259,6 +260,112 @@
     border-radius: 2rem 2rem 0 0;
     background: var(--app-surface-strong);
     box-shadow: 0 28px 80px rgb(15 23 42 / 30%);
+    animation: slide-up 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .log-row {
+    border: 1px solid var(--app-line);
+    border-radius: 1.1rem;
+    background: var(--app-surface);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  }
+
+  .log-row:hover {
+    border-color: rgb(236 72 153 / 25%);
+  }
+
+  .history-day {
+    /* Let the browser skip layout/paint for days that are off-screen. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 480px;
+  }
+
+  .history-day-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 0 -0.25rem 0.5rem;
+    padding: 0.5rem 0.25rem;
+    background: var(--app-canvas);
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .toast-layer {
+    pointer-events: none;
+    position: absolute;
+    z-index: 60;
+    inset-inline: 0;
+    bottom: calc(5.75rem + env(safe-area-inset-bottom));
+    display: flex;
+    justify-content: center;
+    padding: 0 0.9rem;
+  }
+
+  .toast {
+    pointer-events: auto;
+    display: flex;
+    width: 100%;
+    max-width: 24rem;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.6rem 0.6rem 0.8rem;
+    border-radius: 1rem;
+    background: #1e293b;
+    box-shadow: 0 12px 30px rgb(15 23 42 / 28%);
+    color: #f8fafc;
+    font-size: 0.875rem;
+    font-weight: 700;
+    animation: toast-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .toast--error {
+    background: #be123c;
+  }
+
+  .toast-icon {
+    display: grid;
+    width: 1.4rem;
+    height: 1.4rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 999px;
+    background: rgb(16 185 129 / 90%);
+    font-size: 0.75rem;
+    font-weight: 900;
+  }
+
+  .toast--error .toast-icon {
+    background: rgb(255 255 255 / 25%);
+  }
+
+  .toast-action {
+    flex-shrink: 0;
+    min-height: 2.25rem;
+    padding: 0 0.85rem;
+    border-radius: 0.7rem;
+    background: rgb(255 255 255 / 14%);
+    color: #f9a8d4;
+    font-size: 0.8rem;
+    font-weight: 900;
+  }
+
+  .toast-action:active {
+    background: rgb(255 255 255 / 24%);
+  }
+
+  .spinner {
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 3px solid rgb(236 72 153 / 18%);
+    border-top-color: var(--app-brand);
+    border-radius: 999px;
+    animation: spin 700ms linear infinite;
   }
 
   .login-page {
@@ -270,9 +377,8 @@
 
   .login-card {
     border: 1px solid rgb(255 255 255 / 88%);
-    background: rgb(255 255 255 / 76%);
+    background: rgb(255 255 255 / 92%);
     box-shadow: var(--app-shadow-float);
-    backdrop-filter: blur(24px) saturate(145%);
   }
 
   .login-mark {
@@ -283,7 +389,7 @@
   .dark {
     color-scheme: dark;
     --app-canvas: #0b1020;
-    --app-surface: rgb(15 23 42 / 78%);
+    --app-surface: #131c31;
     --app-surface-strong: #111827;
     --app-line: rgb(51 65 85 / 80%);
     --app-text: #f1f5f9;
@@ -301,7 +407,7 @@
 
   .dark .bottom-nav {
     border-color: rgb(51 65 85 / 72%);
-    background: rgb(15 23 42 / 84%);
+    background: rgb(15 23 42 / 97%);
     box-shadow: 0 16px 38px rgb(0 0 0 / 30%), inset 0 1px 0 rgb(255 255 255 / 4%);
   }
 
@@ -309,6 +415,10 @@
     background: linear-gradient(135deg, rgb(131 24 67 / 42%), rgb(49 46 129 / 45%));
   }
 
+  .app-shell.dark { border-color: rgb(51 65 85 / 60%); }
+  .dark .segmented-control { border-color: rgb(51 65 85 / 70%); background: rgb(30 41 59 / 80%); }
+  .dark .history-day-header { color: #94a3b8; }
+  .dark .log-row { box-shadow: none; }
   .dark .quick-panel--solids { background: linear-gradient(145deg, rgb(67 20 7 / 58%), rgb(30 41 59 / 72%)); }
   .dark .quick-panel--diaper { background: linear-gradient(145deg, rgb(6 78 59 / 42%), rgb(30 41 59 / 72%)); }
   .dark .action-card--feeding { background: linear-gradient(145deg, rgb(30 41 59 / 92%), rgb(80 7 36 / 38%)); }
@@ -331,7 +441,7 @@
   outline: none;
 }
 
-.dark .app-shell :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select) {
+.app-shell.dark :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select) {
   border-color: rgb(71 85 105 / 78%);
   background: rgb(15 23 42 / 72%);
 }
@@ -367,6 +477,15 @@
   .animate-soft-pop {
     animation: soft-pop 320ms cubic-bezier(0.22, 1, 0.36, 1);
   }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(0.6rem) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes fade-in {

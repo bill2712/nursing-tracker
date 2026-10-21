@@ -102,7 +102,7 @@ const DevelopmentChecklist: React.FC<DevelopmentChecklistProps> = ({ appState, s
   return (
     <div className="page-shell flex flex-col h-full">
       {/* Month Selector Header */}
-      <div className="bg-white/80 dark:bg-slate-900/80 border-b border-white/70 dark:border-slate-800 pb-2 pt-4 px-4 shrink-0 z-10 sticky top-0 shadow-sm backdrop-blur-xl">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 pb-2 pt-4 px-4 shrink-0 z-10 sticky top-0 shadow-sm">
         <p className="page-eyebrow px-1">Development</p>
         <h1 className="page-title mb-4 mt-1 px-1">成長發展</h1>
         

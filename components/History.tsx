@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { format, startOfDay, endOfDay } from 'date-fns';
+import { zhHK } from 'date-fns/locale';
 import { AppState, LogEntry, ActivityType } from '../types';
 import { formatDuration, exportToCSV, ExportColumn, generateId } from '../utils';
 import { TrashIcon, MilkIcon, BabyIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon, DropletIcon, ColicIcon } from './Icons';
@@ -10,8 +11,10 @@ interface HistoryProps {
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
 }
 
-import { doc, deleteDoc, setDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { saveLog, removeLog } from '../services/logWrites';
+import { showToast, vibrate } from './Toast';
+
+const DAYS_PER_PAGE = 7;
 
 const History: React.FC<HistoryProps> = ({ logs }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -23,6 +26,12 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
   const [filterEnd, setFilterEnd] = useState('');
   const [filterType, setFilterType] = useState<ActivityType | 'all'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list');
+  const [visibleDays, setVisibleDays] = useState(DAYS_PER_PAGE);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+
+  useEffect(() => {
+    setVisibleDays(DAYS_PER_PAGE);
+  }, [filterStart, filterEnd, filterType]);
 
   // Export Modal State
   const [showExportModal, setShowExportModal] = useState(false);
@@ -67,19 +76,25 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   };
 
-  const handleDeleteClick = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); 
-    const targetId = String(id);
-    if (deletingId === targetId) {
-      await deleteDoc(doc(db, 'logs', targetId));
+  // Keep the row callbacks stable so memoized rows don't re-render on every change.
+  const deletingIdRef = useRef(deletingId);
+  deletingIdRef.current = deletingId;
+
+  const handleDeleteClick = useCallback((e: React.MouseEvent, log: LogEntry) => {
+    e.stopPropagation();
+    const targetId = String(log.id);
+    if (deletingIdRef.current === targetId) {
+      removeLog(targetId);
       setDeletingId(null);
+      vibrate();
+      showToast({ message: '已刪除紀錄', actionLabel: '復原', onAction: () => saveLog(log) });
     } else {
       setDeletingId(targetId);
     }
-  };
+  }, []);
 
-  const handleEditClick = (log: LogEntry) => {
-    if (deletingId) {
+  const handleEditClick = useCallback((log: LogEntry) => {
+    if (deletingIdRef.current) {
       setDeletingId(null);
       return;
     }
@@ -89,7 +104,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
     setEditEndTime(log.endTime ? toLocalISO(log.endTime) : '');
     setEditType(log.type);
     setEditDetails({ ...log.details });
-  };
+  }, []);
 
   const handleCreateClick = () => {
       const now = Date.now();
@@ -108,7 +123,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
       setEditDetails({});
   };
 
-  const saveEdit = async () => {
+  const saveEdit = () => {
     if (!editingLog) return;
     
     const start = new Date(editStartTime).getTime();
@@ -171,9 +186,10 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
         details: sanitizedDetails
     };
     
-    // Write directly to Firestore
-    await setDoc(doc(db, 'logs', updatedLog.id), updatedLog);
-    
+    saveLog(updatedLog);
+    showToast({ message: isCreating ? '已新增紀錄' : '已儲存變更' });
+    vibrate();
+
     setEditingLog(null);
     setIsCreating(false);
   };
@@ -195,14 +211,18 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
     });
   }, [logs, filterStart, filterEnd, filterType]);
 
-  const groupedLogs = filteredLogs.reduce((acc, log) => {
-    const dateKey = format(new Date(log.startTime), 'yyyy-MM-dd');
-    if (!acc[dateKey]) acc[dateKey] = [];
-    acc[dateKey].push(log);
-    return acc;
-  }, {} as Record<string, LogEntry[]>);
+  const { groupedLogs, sortedDates } = useMemo(() => {
+    const groups: Record<string, LogEntry[]> = {};
+    for (const log of filteredLogs) {
+      const dateKey = format(new Date(log.startTime), 'yyyy-MM-dd');
+      (groups[dateKey] ||= []).push(log);
+    }
+    Object.values(groups).forEach(dayLogs => dayLogs.sort((a, b) => b.startTime - a.startTime));
+    return { groupedLogs: groups, sortedDates: Object.keys(groups).sort((a, b) => b.localeCompare(a)) };
+  }, [filteredLogs]);
 
-  const sortedDates = Object.keys(groupedLogs).sort((a, b) => b.localeCompare(a));
+  const shownDates = sortedDates.slice(0, visibleDays);
+  const hiddenDayCount = sortedDates.length - shownDates.length;
 
   const openExportModal = (dataToExport: LogEntry[]) => {
       setLogsToExport(dataToExport);
@@ -219,25 +239,25 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
   }
 
   return (
-    <div className="page-shell space-y-6 p-4 pb-24 sm:p-5 sm:pb-24">
-      <header className="page-header flex-col space-y-3 sm:flex-row sm:space-y-0">
-        <div>
+    <div className="page-shell space-y-4 p-4 pb-24 sm:p-5 sm:pb-24">
+      <header className="page-header">
+        <div className="min-w-0">
           <p className="page-eyebrow">Daily journal</p>
           <h1 className="page-title">歷史紀錄</h1>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex shrink-0 gap-2">
             <button 
                 onClick={handleCreateClick}
-                className="primary-action px-4 py-2.5 text-xs"
+                className="primary-action px-3.5 py-2.5 text-xs"
             >
-                + 新增紀錄
+                + 新增
             </button>
             {logs.length > 0 && (
                 <button 
                     onClick={() => openExportModal(logs)}
                     className="min-h-10 rounded-xl border border-white/80 bg-white/75 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                 >
-                    匯出全部
+                    匯出
                 </button>
             )}
             {filteredLogs.length > 0 && (filterStart || filterEnd) && (
@@ -268,69 +288,70 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
       </div>
 
       {/* Filters */}
-      <div className="ui-card space-y-4 p-4">
-        {/* Date Filter */}
-        <div className="space-y-3">
-            <div className="flex justify-between items-center">
-                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">依日期篩選</p>
-                {(filterStart || filterEnd) && (
-                    <button 
-                    onClick={() => { setFilterStart(''); setFilterEnd(''); }}
-                    className="text-xs text-pink-500 font-bold"
-                    >
-                    清除
-                    </button>
-                )}
-            </div>
-            <div className="flex space-x-3">
-            <div className="flex-1 space-y-1">
-                <label className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase">從</label>
-                <input 
-                type="date" 
-                value={filterStart}
-                onChange={(e) => setFilterStart(e.target.value)}
-                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-xs"
-                />
-            </div>
-            <div className="flex-1 space-y-1">
-                <label className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase">至</label>
-                <input 
-                type="date" 
-                value={filterEnd}
-                onChange={(e) => setFilterEnd(e.target.value)}
-                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 rounded-lg text-xs"
-                />
-            </div>
-            </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="no-scrollbar -mx-1 flex flex-1 gap-1.5 overflow-x-auto px-1 py-0.5">
+            {(['all', 'feeding', 'sleep', 'diaper', 'solids', 'clear_snot', 'clean_mouth', 'pumping', 'colic'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setFilterType(t)}
+                aria-pressed={filterType === t}
+                className={`min-h-9 shrink-0 rounded-full px-3.5 text-xs font-bold transition-colors ${
+                  filterType === t
+                    ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                }`}
+              >
+                {t === 'all' ? '全部' : TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowDateFilter(open => !open)}
+            aria-expanded={showDateFilter}
+            className={`flex min-h-9 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-bold transition-colors ${
+              filterStart || filterEnd
+                ? 'bg-pink-500 text-white'
+                : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+            }`}
+          >
+            <CalendarIcon className="h-4 w-4" />
+            日期
+          </button>
         </div>
 
-        {/* Type Filter */}
-        <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase mb-2">活動類型</p>
-             <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                {(['all', 'feeding', 'sleep', 'diaper', 'pumping', 'solids', 'colic', 'clear_snot', 'clean_mouth'] as const).map(t => (
-                    <button
-                        key={t}
-                        onClick={() => setFilterType(t)}
-                        className={`min-h-9 px-1 py-1.5 text-[11px] font-bold rounded-md transition-all ${
-                            filterType === t 
-                            ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm' 
-                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                        }`}
-                    >
-                        {t === 'all' ? '全部' :
-                         t === 'feeding' ? '餵奶' :
-                         t === 'sleep' ? '沖涼' :
-                         t === 'diaper' ? '換片' :
-                         t === 'pumping' ? '擠奶' : 
-                         t === 'solids' ? '副食品' :
-                         t === 'colic' ? 'Colic' :
-                         t === 'clear_snot' ? '清鼻涕' :
-                         t === 'clean_mouth' ? '清潔口腔' : '未知類型'}
-                    </button>
-                ))}
-             </div>
-        </div>
+        {showDateFilter && (
+          <div className="ui-card animate-fade-in space-y-2 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">依日期篩選</p>
+              {(filterStart || filterEnd) && (
+                <button onClick={() => { setFilterStart(''); setFilterEnd(''); }} className="min-h-8 px-2 text-xs font-bold text-pink-500">
+                  清除
+                </button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <label className="flex-1 space-y-1">
+                <span className="text-[11px] font-semibold text-slate-400">從</span>
+                <input
+                  type="date"
+                  value={filterStart}
+                  onChange={(e) => setFilterStart(e.target.value)}
+                  className="w-full border border-slate-200 bg-slate-50 p-2 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                />
+              </label>
+              <label className="flex-1 space-y-1">
+                <span className="text-[11px] font-semibold text-slate-400">至</span>
+                <input
+                  type="date"
+                  value={filterEnd}
+                  onChange={(e) => setFilterEnd(e.target.value)}
+                  className="w-full border border-slate-200 bg-slate-50 p-2 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                />
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {filteredLogs.length === 0 ? (
@@ -338,96 +359,24 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
           <p>此期間找不到紀錄。</p>
         </div>
       ) : (
-        <div className="space-y-8">
-          {sortedDates.map(date => (
-            <div key={date}>
-              <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 sticky top-0 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur py-2 z-10 border-b border-slate-50/0">
-                {format(new Date(date + 'T00:00:00'), 'EEEE, MMMM do')}
+        <div className="space-y-6">
+          {shownDates.map(date => (
+            <section key={date} className="history-day">
+              <h3 className="history-day-header">
+                <span>{format(new Date(date + 'T00:00:00'), 'M月d日 EEEE', { locale: zhHK })}</span>
+                <span className="text-[11px] font-bold normal-case tracking-normal text-slate-400">{groupedLogs[date].length} 項</span>
               </h3>
-              
+
               {viewMode === 'list' ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {groupedLogs[date].map(log => (
-                      <div 
-                        key={log.id} 
-                        onClick={() => handleEditClick(log)}
-                        className="ui-card group relative flex cursor-pointer items-center justify-between overflow-hidden p-4 transition-all active:scale-[0.99] dark:active:bg-slate-800"
-                      >
-                        <div className="flex items-center space-x-4 flex-1 min-w-0">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                            log.type === 'feeding' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400' :
-                            log.type === 'sleep' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' :
-                            log.type === 'pumping' ? 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400' :
-                            log.type === 'solids' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' :
-                            log.type === 'colic' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' :
-                            log.type === 'clear_snot' ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400' :
-                            log.type === 'clean_mouth' ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400' :
-                            'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-                          }`}>
-                             {log.type === 'feeding' && <MilkIcon className="w-5 h-5" />}
-                             {log.type === 'sleep' && <DropletIcon className="w-5 h-5" />}
-                             {log.type === 'pumping' && <PumpIcon className="w-5 h-5" />}
-                             {log.type === 'solids' && <FoodIcon className="w-5 h-5" />}
-                             {log.type === 'colic' && <ColicIcon className="w-5 h-5" />}
-                             {log.type === 'clear_snot' && <DropletIcon className="w-5 h-5" />}
-                             {log.type === 'clean_mouth' && <BabyIcon className="w-5 h-5" />}
-                             {log.type === 'diaper' && <BabyIcon className="w-5 h-5" />}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-slate-700 dark:text-slate-200 capitalize flex items-center gap-2 flex-wrap">
-                              {log.type === 'feeding' ? '餵奶' : 
-                               log.type === 'sleep' ? '沖涼' : 
-                               log.type === 'diaper' ? '換片' : 
-                               log.type === 'pumping' ? '擠奶' : 
-                               log.type === 'solids' ? '副食品' : 
-                               log.type === 'colic' ? 'Colic' : 
-                               log.type === 'clear_snot' ? '清鼻涕' : 
-                               log.type === 'clean_mouth' ? '清潔口腔' : '未知類型'}
-                              {log.durationSeconds && log.durationSeconds > 0 && (
-                                <span className={`text-xs px-2 py-0.5 rounded font-bold ${log.type === 'sleep' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-                                    {formatDuration(log.durationSeconds)}
-                                </span>
-                              )}
-                              {log.details.side && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">
-                                  {log.details.side === 'left' ? '左' : (log.details.side === 'right' ? '右' : '雙邊')}
-                              </span>}
-                              {log.details.amountMl && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">{log.details.amountMl}ml</span>}
-                              {log.details.diaperState && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 font-normal">
-                                  {log.details.diaperState === 'wet' ? '濕' : (log.details.diaperState === 'dirty' ? '髒' : '混合')}
-                              </span>}
-                              {log.details.urineMl && <span className="text-xs bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-semibold">尿量 {log.details.urineMl}ml</span>}
-                              {log.details.foods && log.details.foods.map((food, i) => (
-                                  <span key={i} className="text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-normal">{food}</span>
-                              ))}
-                              {log.details.reaction && <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded font-bold border border-red-100 dark:border-red-900/50">反應: {log.details.reaction}</span>}
-                            </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
-                              {format(new Date(log.startTime), 'h:mm a')} 
-                              {log.endTime && ` - ${format(new Date(log.endTime), 'h:mm a')}`}
-                            </div>
-                            {log.details.notes && (
-                              <div className="text-xs text-slate-400 dark:text-slate-500 mt-1 italic truncate">
-                                "{log.details.notes}"
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <button 
-                          onClick={(e) => handleDeleteClick(e, log.id)}
-                          className={`ml-3 h-10 rounded-full flex items-center justify-center transition-all duration-200 z-20 ${
-                            deletingId === String(log.id)
-                              ? 'bg-red-500 text-white w-24 px-2' 
-                              : 'w-10 text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-                          }`}
-                        >
-                          {deletingId === String(log.id) ? (
-                            <span className="text-xs font-bold animate-fade-in whitespace-nowrap">確認刪除</span>
-                          ) : (
-                            <TrashIcon className="w-5 h-5 pointer-events-none" />
-                          )}
-                        </button>
-                      </div>
+                      <LogRow
+                        key={log.id}
+                        log={log}
+                        isDeleting={deletingId === String(log.id)}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteClick}
+                      />
                     ))}
                   </div>
               ) : (
@@ -437,8 +386,16 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                     onEdit={handleEditClick} 
                   />
               )}
-            </div>
+            </section>
           ))}
+          {hiddenDayCount > 0 && (
+            <button
+              onClick={() => setVisibleDays(days => days + DAYS_PER_PAGE)}
+              className="w-full rounded-2xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              顯示更早紀錄（尚有 {hiddenDayCount} 日）
+            </button>
+          )}
         </div>
       )}
 
@@ -869,5 +826,106 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
     </div>
   );
 };
+
+const TYPE_LABELS: Record<string, string> = {
+  feeding: '餵奶', sleep: '沖涼', diaper: '換片', pumping: '擠奶', solids: '副食品',
+  colic: 'Colic', clear_snot: '清鼻涕', clean_mouth: '清潔口腔'
+};
+
+const TYPE_ICON_STYLES: Record<string, string> = {
+  feeding: 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400',
+  sleep: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
+  pumping: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
+  solids: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+  colic: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
+  clear_snot: 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400',
+  clean_mouth: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400',
+  diaper: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+};
+
+const TypeIcon: React.FC<{ type: ActivityType }> = ({ type }) => {
+  const className = 'w-5 h-5';
+  switch (type) {
+    case 'feeding': return <MilkIcon className={className} />;
+    case 'sleep':
+    case 'clear_snot': return <DropletIcon className={className} />;
+    case 'pumping': return <PumpIcon className={className} />;
+    case 'solids': return <FoodIcon className={className} />;
+    case 'colic': return <ColicIcon className={className} />;
+    default: return <BabyIcon className={className} />;
+  }
+};
+
+const chip = 'text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 font-semibold';
+
+interface LogRowProps {
+  log: LogEntry;
+  isDeleting: boolean;
+  onEdit: (log: LogEntry) => void;
+  onDelete: (e: React.MouseEvent, log: LogEntry) => void;
+}
+
+const LogRow = React.memo<LogRowProps>(({ log, isDeleting, onEdit, onDelete }) => (
+  <div
+    role="button"
+    tabIndex={0}
+    onClick={() => onEdit(log)}
+    onKeyDown={e => { if (e.key === 'Enter') onEdit(log); }}
+    className="log-row group relative flex cursor-pointer items-center justify-between overflow-hidden px-3.5 py-3 transition-transform active:scale-[0.99]"
+  >
+    <div className="flex items-center gap-3 flex-1 min-w-0">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${TYPE_ICON_STYLES[log.type] || TYPE_ICON_STYLES.diaper}`}>
+        <TypeIcon type={log.type} />
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+          <span>{TYPE_LABELS[log.type] || '未知類型'}</span>
+          {!!log.durationSeconds && log.durationSeconds > 0 && (
+            <span className={`text-xs px-2 py-0.5 rounded-md font-bold ${log.type === 'sleep' ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+              {formatDuration(log.durationSeconds)}
+            </span>
+          )}
+          {log.details.side && <span className={chip}>
+            {log.details.side === 'left' ? '左' : (log.details.side === 'right' ? '右' : '雙邊')}
+          </span>}
+          {!!log.details.amountMl && <span className={chip}>{log.details.amountMl}ml</span>}
+          {log.details.diaperState && <span className={chip}>
+            {log.details.diaperState === 'wet' ? '濕' : (log.details.diaperState === 'dirty' ? '髒' : '混合')}
+          </span>}
+          {!!log.details.urineMl && <span className="text-xs bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-md text-emerald-700 dark:text-emerald-300 font-semibold">尿量 {log.details.urineMl}ml</span>}
+          {log.details.foods?.map((food, i) => (
+            <span key={i} className="text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded-md font-semibold">{food}</span>
+          ))}
+          {log.details.reaction && <span className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-md font-bold border border-red-100 dark:border-red-900/50">反應: {log.details.reaction}</span>}
+        </div>
+        <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 truncate tabular-nums">
+          {format(new Date(log.startTime), 'HH:mm')}
+          {log.endTime && ` – ${format(new Date(log.endTime), 'HH:mm')}`}
+        </div>
+        {log.details.notes && (
+          <div className="text-xs text-slate-400 dark:text-slate-500 mt-1 italic truncate">
+            "{log.details.notes}"
+          </div>
+        )}
+      </div>
+    </div>
+
+    <button
+      onClick={(e) => onDelete(e, log)}
+      aria-label={isDeleting ? '確認刪除' : '刪除紀錄'}
+      className={`ml-3 h-10 rounded-full flex items-center justify-center transition-all duration-200 z-20 ${
+        isDeleting
+          ? 'bg-red-500 text-white w-24 px-2'
+          : 'w-10 text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+      }`}
+    >
+      {isDeleting ? (
+        <span className="text-xs font-bold animate-fade-in whitespace-nowrap">確認刪除</span>
+      ) : (
+        <TrashIcon className="w-5 h-5 pointer-events-none" />
+      )}
+    </button>
+  </div>
+));
 
 export default History;

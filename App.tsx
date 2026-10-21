@@ -1,17 +1,35 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { AppState, LogEntry, ActivityType } from './types';
 import Tracker from './components/Tracker';
-import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, HeartIcon } from './components/Icons';
+import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, HeartIcon, BabyIcon } from './components/Icons';
 import { INITIAL_VACCINES, INITIAL_MILESTONES } from './data/healthData';
+import { ToastHost } from './components/Toast';
 
-const History = lazy(() => import('./components/History'));
-const Analysis = lazy(() => import('./components/Analysis'));
-const Settings = lazy(() => import('./components/Settings'));
-const Growth = lazy(() => import('./components/Growth'));
-const Health = lazy(() => import('./components/Health'));
-const DevelopmentChecklist = lazy(() => import('./components/DevelopmentChecklist'));
+const pageLoaders = {
+  history: () => import('./components/History'),
+  analysis: () => import('./components/Analysis'),
+  settings: () => import('./components/Settings'),
+  growth: () => import('./components/Growth'),
+  health: () => import('./components/Health'),
+  checklist: () => import('./components/DevelopmentChecklist')
+};
 
-type View = 'tracker' | 'history' | 'analysis' | 'checklist' | 'settings' | 'health';
+const History = lazy(pageLoaders.history);
+const Analysis = lazy(pageLoaders.analysis);
+const Settings = lazy(pageLoaders.settings);
+const Growth = lazy(pageLoaders.growth);
+const Health = lazy(pageLoaders.health);
+const DevelopmentChecklist = lazy(pageLoaders.checklist);
+
+// Download the other tabs in the background once the first screen is shown,
+// so switching tabs does not flash a loading state.
+const preloadPages = () => {
+  const run = () => Object.values(pageLoaders).forEach(load => { load().catch(() => {}); });
+  const idle = (window as any).requestIdleCallback as ((cb: () => void) => void) | undefined;
+  if (idle) idle(run); else window.setTimeout(run, 1200);
+};
+
+type View = 'tracker' | 'history' | 'analysis' | 'checklist' | 'settings' | 'health' | 'growth';
 
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, doc, setDoc, limit, getDoc } from 'firebase/firestore';
@@ -71,6 +89,11 @@ const App: React.FC = () => {
 
   const [currentView, setCurrentView] = useState<View>('tracker');
 
+  const changeView = (view: View) => {
+    setCurrentView(view);
+    document.querySelector('.app-main')?.scrollTo({ top: 0 });
+  };
+
   // Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -83,6 +106,8 @@ const App: React.FC = () => {
   // Data Sync Listeners (Only when logged in AND permitted)
   useEffect(() => {
     if (!user || !ALERT_emails.includes(user.email || '')) return;
+
+    preloadPages();
 
     // 1. Listen to Logs
     const q = query(collection(db, 'logs'), orderBy('startTime', 'desc'), limit(5000)); 
@@ -168,7 +193,12 @@ const App: React.FC = () => {
   // Handle Logout
   const handleLogout = () => signOut(auth);
 
-  if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">載入中...</div>;
+  if (loading) return (
+    <div className="h-[100dvh] flex flex-col items-center justify-center gap-3 text-sm font-semibold text-slate-400">
+      <div className="spinner" aria-hidden="true" />
+      載入中…
+    </div>
+  );
   if (!user) return <Login />;
 
   // ACCESS CHECK
@@ -220,7 +250,7 @@ const App: React.FC = () => {
     <div className={`app-shell h-[100dvh] w-full flex flex-col mx-auto max-w-lg sm:my-4 sm:h-[calc(100dvh-2rem)] overflow-hidden relative ${appState.darkMode ? 'dark' : ''}`}>
       <div className="app-frame flex flex-col h-full text-slate-900 dark:text-slate-100 transition-colors duration-200">
           <main className="app-main flex-1 overflow-y-auto no-scrollbar relative">
-             <Suspense fallback={<div className="flex min-h-full items-center justify-center p-6 text-sm font-semibold text-slate-400">載入頁面中…</div>}>
+             <Suspense fallback={<div className="flex min-h-full items-center justify-center p-6"><div className="spinner" aria-label="載入頁面中" /></div>}>
                {renderView()}
              </Suspense>
           </main>
@@ -228,41 +258,42 @@ const App: React.FC = () => {
           <nav aria-label="主要導覽" className="bottom-nav flex justify-around items-center px-1 z-10 shrink-0 safe-area-pb transition-colors duration-200">
             <NavButton 
               active={currentView === 'tracker'} 
-              onClick={() => setCurrentView('tracker')} 
+              onClick={() => changeView('tracker')} 
               icon={<ClockIcon />} 
               label="追蹤" 
             />
             <NavButton 
               active={currentView === 'history'} 
-              onClick={() => setCurrentView('history')} 
+              onClick={() => changeView('history')} 
               icon={<ListIcon />} 
               label="紀錄" 
             />
             <NavButton 
               active={currentView === 'analysis'} 
-              onClick={() => setCurrentView('analysis')} 
+              onClick={() => changeView('analysis')} 
               icon={<BarChartIcon />} 
               label="分析" 
             />
             <NavButton 
               active={currentView === 'checklist'} 
-              onClick={() => setCurrentView('checklist')} 
-              icon={<ListIcon />} 
+              onClick={() => changeView('checklist')} 
+              icon={<BabyIcon />} 
               label="發展" 
             />
             <NavButton 
               active={currentView === 'health'} 
-              onClick={() => setCurrentView('health')} 
+              onClick={() => changeView('health')} 
               icon={<HeartIcon />} 
               label="健康" 
             />
             <NavButton 
               active={currentView === 'settings'} 
-              onClick={() => setCurrentView('settings')} 
+              onClick={() => changeView('settings')} 
               icon={<SettingsIcon />} 
               label="設定" 
             />
           </nav>
+          <ToastHost />
       </div>
     </div>
   );
