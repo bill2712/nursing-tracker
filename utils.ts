@@ -58,6 +58,22 @@ export const normalizeMl = (value: unknown, max = 2000): number | null => {
   return Math.round(amount);
 };
 
+// Value typed into an ml box. An empty box means "no amount" (undefined), not 0.
+export const parseMlInput = (value: string): number | undefined => {
+  if (value.trim() === '') return undefined;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.round(amount) : undefined;
+};
+
+// Firestore rejects fields set to undefined, so drop them before writing.
+export const withoutUndefined = <T extends object>(value: T): T => {
+  const result = { ...value };
+  (Object.keys(result) as (keyof T)[]).forEach(key => {
+    if (result[key] === undefined) delete result[key];
+  });
+  return result;
+};
+
 export const getTodayVolumeTotals = (logs: LogEntry[], now: number = Date.now()) => {
   const dayStart = startOfDay(now).getTime();
   return logs.reduce((totals, log) => {

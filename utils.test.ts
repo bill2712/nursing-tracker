@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getFoodIntakeTotals, getGrowthViewMaxAge, getTrackerSummary, getFinishedTimerTimes, getTodayFoodIntakeTotals, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl } from './utils';
+import { getFoodIntakeTotals, getGrowthViewMaxAge, getTrackerSummary, getFinishedTimerTimes, getTodayFoodIntakeTotals, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl, parseMlInput, withoutUndefined } from './utils';
 import type { LogEntry } from './types';
 
 describe('normalizeMl', () => {
@@ -128,5 +128,24 @@ describe('getFinishedTimerTimes', () => {
     );
     expect(result.endTime).toBe(pauseStartTime);
     expect(result.durationSeconds).toBe((20 - 4 + 2) * 60);
+  });
+});
+
+describe('parseMlInput', () => {
+  it('treats an empty box as no amount instead of 0', () => {
+    expect(parseMlInput('')).toBeUndefined();
+    expect(parseMlInput('  ')).toBeUndefined();
+  });
+
+  it('rounds typed amounts', () => {
+    expect(parseMlInput('120')).toBe(120);
+    expect(parseMlInput('42.6')).toBe(43);
+  });
+});
+
+describe('withoutUndefined', () => {
+  it('drops undefined fields so Firestore accepts the write', () => {
+    expect(withoutUndefined({ amountMl: undefined, feedingType: 'bottle', notes: '' }))
+      .toEqual({ feedingType: 'bottle', notes: '' });
   });
 });

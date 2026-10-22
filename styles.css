@@ -24,6 +24,7 @@
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
+    min-height: 100dvh;
     background:
       linear-gradient(135deg, rgb(255 247 251 / 96%), rgb(239 246 255 / 94%) 46%, rgb(240 253 250 / 92%));
     color: var(--app-text);
@@ -239,21 +240,28 @@
     transform: translateY(0) scale(0.985);
   }
 
+  /* Sized to the visible part of the screen (see services/viewport.ts), so
+     the on-screen keyboard never covers a sheet's buttons. */
   .modal-backdrop {
     position: fixed;
     z-index: 50;
-    inset: 0;
+    top: var(--vv-top, 0px);
+    left: 0;
+    right: 0;
+    height: var(--vv-height, 100dvh);
     display: flex;
     align-items: flex-end;
     justify-content: center;
     padding: 0;
     background: rgb(15 23 42 / 55%);
+    overscroll-behavior: contain;
     animation: fade-in 160ms ease-out;
   }
 
   .modal-sheet {
     display: flex;
     width: 100%;
+    max-height: 100%;
     flex-direction: column;
     overflow: hidden;
     border: 1px solid rgb(255 255 255 / 65%);
@@ -261,6 +269,26 @@
     background: var(--app-surface-strong);
     box-shadow: 0 28px 80px rgb(15 23 42 / 30%);
     animation: slide-up 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Scrollable middle of a sheet; header and footer stay put. */
+  .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-footer {
+    flex-shrink: 0;
+    padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--app-line);
+    background: rgb(248 250 252);
+  }
+
+  .dark .modal-footer {
+    background: rgb(30 41 59 / 50%);
   }
 
   .log-row {
@@ -447,6 +475,14 @@
 }
 
 .dark .page-title { color: #f8fafc; }
+
+/* iPhone zooms the whole page in when a field under 16px gets focus, which
+   pushes buttons off screen. Keep small fields at 16px on touch screens. */
+@media (pointer: coarse) {
+  .app-shell :is(input, textarea, select):is(.text-xs, .text-sm) {
+    font-size: 16px;
+  }
+}
 
 .app-shell button:not(:disabled) {
   touch-action: manipulation;
