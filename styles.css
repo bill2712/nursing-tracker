@@ -69,7 +69,6 @@
       var(--app-canvas);
     background-attachment: local;
     overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
   }
 
   .page-shell {
@@ -277,7 +276,6 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
   }
 
   .modal-footer {

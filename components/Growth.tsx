@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { showToast, vibrate } from './Toast';
+import ModalPortal from './ModalPortal';
 
 const reportSyncError = (error: unknown) => {
   console.error(error);
@@ -467,6 +468,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
 
       {/* Add/Edit Modal */}
       {isAdding && (
+         <ModalPortal>
          <div className="modal-backdrop pt-3 sm:items-center sm:p-4" onClick={() => setIsAdding(false)}>
              <div role="dialog" aria-modal="true" aria-label={editingId ? '編輯成長紀錄' : '新增成長紀錄'} className="modal-sheet bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in" onClick={e => e.stopPropagation()}>
                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
@@ -538,6 +540,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                  </div>
              </div>
          </div>
+         </ModalPortal>
       )}
     </div>
   );
