@@ -6,6 +6,12 @@ import { WHO_STANDARDS } from './WHOStandards';
 import { format } from 'date-fns';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { showToast, vibrate } from './Toast';
+
+const reportSyncError = (error: unknown) => {
+  console.error(error);
+  showToast({ message: '同步失敗，請檢查網絡後再試', tone: 'error' });
+};
 
 interface GrowthProps {
   appState: AppState;
@@ -85,8 +91,12 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
     setIsAdding(true);
   };
 
-  const saveEntry = async () => {
-    if (!date) return;
+  const saveEntry = () => {
+    const entryDate = new Date(date).getTime();
+    if (!date || !Number.isFinite(entryDate)) {
+      alert('請選擇日期');
+      return;
+    }
 
     // Parse inputs based on current unit settings
     let finalWeight = parseFloat(weight);
@@ -101,12 +111,17 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
 
     const newEntry = {
         id: editingId || generateId(),
-        date: new Date(date).getTime(),
+        date: entryDate,
     } as GrowthEntry;
-    if (!isNaN(finalWeight)) newEntry.weight = finalWeight;
-    if (!isNaN(finalLength)) newEntry.length = finalLength;
-    if (!isNaN(finalHead)) newEntry.headCircumference = finalHead;
+    if (finalWeight > 0) newEntry.weight = finalWeight;
+    if (finalLength > 0) newEntry.length = finalLength;
+    if (finalHead > 0) newEntry.headCircumference = finalHead;
     if (notes.trim()) newEntry.notes = notes.trim();
+
+    if (!newEntry.weight && !newEntry.length && !newEntry.headCircumference) {
+      alert('請最少輸入體重、身高或頭圍其中一項');
+      return;
+    }
 
     const existing = appState.growth || [];
     let updated;
@@ -116,15 +131,21 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
         updated = [...existing, newEntry];
     }
     
-    await setDoc(doc(db, 'system', 'sharedState'), { growth: updated }, { merge: true });
-
+    // Close right away. Waiting for the server kept the sheet open on a slow
+    // connection, and tapping save again added the same measurement twice.
     setIsAdding(false);
+    vibrate();
+    showToast({ message: editingId ? '已更新成長紀錄' : '已新增成長紀錄' });
+    setDoc(doc(db, 'system', 'sharedState'), { growth: updated }, { merge: true }).catch(reportSyncError);
   };
 
-  const deleteEntry = async (id: string) => {
+  const deleteEntry = (id: string) => {
     if (confirm("確定要刪除此成長紀錄？")) {
         const updated = appState.growth.filter(g => g.id !== id);
-        await setDoc(doc(db, 'system', 'sharedState'), { growth: updated }, { merge: true });
+        setIsAdding(false);
+        setEditingId(null);
+        showToast({ message: '已刪除成長紀錄' });
+        setDoc(doc(db, 'system', 'sharedState'), { growth: updated }, { merge: true }).catch(reportSyncError);
     }
   };
 
@@ -446,16 +467,16 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
 
       {/* Add/Edit Modal */}
       {isAdding && (
-         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/55 animate-fade-in" onClick={() => setIsAdding(false)}>
-             <div className="bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in" onClick={e => e.stopPropagation()}>
-                 <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
-                     <h3 className="font-bold text-slate-700 dark:text-slate-200">{editingId ? 'Edit Record' : 'Log Measurement'}</h3>
+         <div className="modal-backdrop pt-3 sm:items-center sm:p-4" onClick={() => setIsAdding(false)}>
+             <div role="dialog" aria-modal="true" aria-label={editingId ? '編輯成長紀錄' : '新增成長紀錄'} className="modal-sheet bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden animate-slide-up sm:animate-fade-in" onClick={e => e.stopPropagation()}>
+                 <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
+                     <h3 className="font-bold text-slate-700 dark:text-slate-200">{editingId ? '編輯成長紀錄' : '新增成長紀錄'}</h3>
                      {editingId && (
-                         <button onClick={() => deleteEntry(editingId)} className="text-red-500 text-xs font-bold uppercase px-2">Delete</button>
+                         <button onClick={() => deleteEntry(editingId)} className="text-red-500 text-xs font-bold px-2">刪除</button>
                      )}
                  </div>
                  
-                 <div className="p-6 space-y-4">
+                 <div className="modal-body p-6 space-y-4">
                      <div className="space-y-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">日期</label>
                         <input 
@@ -470,7 +491,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                          <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase">體重 ({profile.weightUnit})</label>
                             <input 
-                                type="number" step="0.01"
+                                type="number" step="0.01" inputMode="decimal"
                                 value={weight}
                                 onChange={e => setWeight(e.target.value)}
                                 placeholder="0.00"
@@ -480,7 +501,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                          <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 uppercase">身高 ({profile.lengthUnit})</label>
                             <input 
-                                type="number" step="0.1"
+                                type="number" step="0.1" inputMode="decimal"
                                 value={length}
                                 onChange={e => setLength(e.target.value)}
                                 placeholder="0.0"
@@ -492,7 +513,7 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                      <div className="space-y-1">
                         <label className="text-xs font-bold text-slate-500 uppercase">頭圍 ({profile.lengthUnit})</label>
                         <input 
-                            type="number" step="0.1"
+                            type="number" step="0.1" inputMode="decimal"
                             value={head}
                             onChange={e => setHead(e.target.value)}
                             placeholder="0.0"
@@ -510,10 +531,10 @@ const Growth: React.FC<GrowthProps> = ({ appState, setAppState }) => {
                         />
                      </div>
 
-                     <div className="flex gap-3 pt-2">
-                        <button onClick={() => setIsAdding(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl">取消</button>
-                        <button onClick={saveEntry} className="flex-1 py-3 bg-pink-500 text-white font-bold rounded-xl shadow-lg shadow-pink-200 dark:shadow-none">儲存</button>
-                     </div>
+                 </div>
+                 <div className="modal-footer flex gap-3">
+                    <button onClick={() => setIsAdding(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl">取消</button>
+                    <button onClick={saveEntry} className="flex-1 py-3 bg-pink-500 text-white font-bold rounded-xl shadow-lg shadow-pink-200 dark:shadow-none">儲存</button>
                  </div>
              </div>
          </div>

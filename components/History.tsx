@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { zhHK } from 'date-fns/locale';
 import { AppState, LogEntry, ActivityType } from '../types';
-import { formatDuration, exportToCSV, ExportColumn, generateId } from '../utils';
+import { formatDuration, exportToCSV, ExportColumn, generateId, parseMlInput } from '../utils';
 import { TrashIcon, MilkIcon, BabyIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon, DropletIcon, ColicIcon } from './Icons';
 import Timeline from './Timeline';
 
@@ -15,6 +15,11 @@ import { saveLog, removeLog } from '../services/logWrites';
 import { showToast, vibrate } from './Toast';
 
 const DAYS_PER_PAGE = 7;
+
+// Number keyboards' Done/Enter key closes the keyboard so the save button shows.
+const blurOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  if (event.key === 'Enter') event.currentTarget.blur();
+};
 
 const History: React.FC<HistoryProps> = ({ logs }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -406,7 +411,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                   <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
                       <h3 className="font-bold text-slate-800 dark:text-slate-100">匯出選項</h3>
                   </div>
-                  <div className="p-6 space-y-4">
+                  <div className="modal-body p-6 space-y-4">
                       <p className="text-sm text-slate-500 dark:text-slate-400">選擇要匯出的欄位:</p>
                       <div className="space-y-2">
                           {exportColumns.map(col => (
@@ -442,8 +447,8 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
 
       {/* Full Edit/Create Modal */}
       {editingLog && (
-        <div className="modal-backdrop sm:items-center sm:p-4" onClick={() => setEditingLog(null)}>
-          <div className="modal-sheet max-h-[95vh] flex-col sm:max-w-sm sm:rounded-3xl" onClick={e => e.stopPropagation()}>
+        <div className="modal-backdrop pt-3 sm:items-center sm:p-4" onClick={() => setEditingLog(null)}>
+          <div role="dialog" aria-modal="true" aria-label={isCreating ? '新增紀錄' : '編輯紀錄'} className="modal-sheet sm:max-w-sm sm:rounded-3xl" onClick={e => e.stopPropagation()}>
             {/* Mobile Drag Handle */}
             <div className="w-full flex justify-center pt-3 pb-2 sm:hidden bg-slate-50 dark:bg-slate-800/50">
               <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full" />
@@ -455,7 +460,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
               </button>
             </div>
             
-            <div className="p-6 space-y-6 overflow-y-auto w-full">
+            <div className="modal-body p-5 space-y-6 w-full">
                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-wrap">
                   {['feeding', 'sleep', 'diaper', 'solids'].map((t) => (
                       <button 
@@ -502,7 +507,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                        </div>}
                    </div>
                ) : (
-                   <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-1">
                          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>
                          <input 
@@ -664,10 +669,12 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                                 type="number" 
                                 inputMode="decimal"
                                 pattern="[0-9]*"
+                                enterKeyHint="done"
                                 placeholder="份量" 
-                                value={editDetails.amountMl || ''}
+                                value={editDetails.amountMl ?? ''}
                                 className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
-                                onChange={e => setEditDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
+                                onChange={e => setEditDetails(p => ({ ...p, amountMl: parseMlInput(e.target.value) }))}
+                                onKeyDown={blurOnEnter}
                               />
                               <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
                            </div>
@@ -692,10 +699,12 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                             type="number" 
                             inputMode="decimal"
                             pattern="[0-9]*"
+                            enterKeyHint="done"
                             placeholder="份量" 
-                            value={editDetails.amountMl || ''}
+                            value={editDetails.amountMl ?? ''}
                             className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
-                            onChange={e => setEditDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0 }))}
+                            onChange={e => setEditDetails(p => ({ ...p, amountMl: parseMlInput(e.target.value) }))}
+                            onKeyDown={blurOnEnter}
                           />
                           <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
                        </div>
@@ -712,8 +721,10 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                               inputMode="numeric"
                               min="0"
                               max="2000"
+                              enterKeyHint="done"
                               value={editDetails.amountMl ?? ''}
-                              onChange={event => setEditDetails(previous => ({ ...previous, amountMl: event.target.value ? Number(event.target.value) : undefined }))}
+                              onChange={event => setEditDetails(previous => ({ ...previous, amountMl: parseMlInput(event.target.value) }))}
+                              onKeyDown={blurOnEnter}
                               placeholder="輸入份量"
                               className="w-full rounded-xl border border-orange-200 bg-orange-50/50 p-3 pe-12 text-base font-bold text-slate-800 dark:border-orange-900 dark:bg-orange-950/20 dark:text-white"
                             />
@@ -788,8 +799,10 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                        inputMode="numeric"
                        min="0"
                        max="2000"
+                       enterKeyHint="done"
                        value={editDetails.urineMl ?? ''}
-                       onChange={event => setEditDetails(previous => ({ ...previous, urineMl: event.target.value ? Number(event.target.value) : undefined }))}
+                       onChange={event => setEditDetails(previous => ({ ...previous, urineMl: parseMlInput(event.target.value) }))}
+                       onKeyDown={blurOnEnter}
                        placeholder="輸入尿量"
                        className="w-full rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 pe-12 text-base font-bold text-slate-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-white"
                      />
@@ -812,7 +825,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                )}
             </div>
             
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-8">
+            <div className="modal-footer">
                <button 
                  onClick={saveEdit}
                  className="w-full py-3 bg-slate-900 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors shadow-lg"

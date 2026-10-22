@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MilkIcon, PencilIcon, PumpIcon, DropletIcon } from './Icons';
 import { AppState, LogEntry, ActivityType } from '../types';
-import { formatTimer, generateId, formatTimeAgoAbsolute, normalizeMl, getTrackerSummary, getFinishedTimerTimes } from '../utils';
+import { formatTimer, generateId, formatTimeAgoAbsolute, normalizeMl, getTrackerSummary, getFinishedTimerTimes, parseMlInput, withoutUndefined } from '../utils';
 import { saveLogWithUndo, saveLog } from '../services/logWrites';
 import { showToast, vibrate } from './Toast';
 
@@ -12,6 +12,11 @@ interface TrackerProps {
 
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
+
+// Number keyboards' Done/Enter key closes the keyboard so the save button shows.
+const blurOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
+  if (event.key === 'Enter') event.currentTarget.blur();
+};
 
 const Tracker: React.FC<TrackerProps> = ({ appState }) => {
   const [elapsed, setElapsed] = useState(0);
@@ -175,7 +180,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
       if (!appState.activeTimer) return;
       const updatedTimer = {
           ...appState.activeTimer,
-          details: { ...appState.activeTimer.details, ...updates }
+          details: withoutUndefined({ ...appState.activeTimer.details, ...updates })
       };
       await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
   };
@@ -192,16 +197,28 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
       }
   };
 
-  const saveActiveEdit = async () => {
+  const saveActiveEdit = () => {
       if (!appState.activeTimer) return;
       const newStart = new Date(activeEditStartTime).getTime();
-      
+      if (!Number.isFinite(newStart)) {
+        alert('請選擇有效的開始時間');
+        return;
+      }
+      if (newStart > Date.now()) {
+        alert('開始時間不能遲於現在');
+        return;
+      }
+
       const updatedTimer = {
           ...appState.activeTimer,
           startTime: newStart
       };
-      await setDoc(doc(db, 'system', 'activeTimer'), updatedTimer);
+      // Close right away; Firestore updates the screen from its local cache.
       setShowActiveEditModal(false);
+      setDoc(doc(db, 'system', 'activeTimer'), updatedTimer).catch(error => {
+        console.error(error);
+        showToast({ message: '同步失敗，請檢查網絡後再試', tone: 'error' });
+      });
   };
 
   const stopTimer = async () => {
@@ -315,7 +332,11 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
     const start = new Date(manualStartTime).getTime();
     const end = isPointEvent ? undefined : new Date(manualEndTime).getTime();
 
-    if (!Number.isFinite(start) || (!isPointEvent && (!Number.isFinite(end) || (end as number) <= start))) {
+    if (!Number.isFinite(start) || (!isPointEvent && !Number.isFinite(end))) {
+      alert('請選擇有效時間');
+      return;
+    }
+    if (!isPointEvent && (end as number) <= start) {
       alert('結束時間必須遲於開始時間');
       return;
     }
@@ -374,17 +395,30 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
     showToast({ message: '已補登紀錄' });
   };
 
+  // Start and end used to both default to "now", so saving a feed straight
+  // away failed with "end must be after start". Give timed entries a typical
+  // length instead; point events (diaper, solids) just use the time.
+  const DEFAULT_MANUAL_MINUTES: Partial<Record<ActivityType, number>> = { feeding: 20, sleep: 10 };
+
+  const setManualTimesFor = (type: ActivityType, endIso: string) => {
+    const end = new Date(endIso).getTime();
+    const minutes = DEFAULT_MANUAL_MINUTES[type];
+    if (!Number.isFinite(end)) return;
+    setManualEndTime(endIso);
+    setManualStartTime(minutes ? toLocalISO(end - minutes * 60 * 1000) : endIso);
+  };
+
   const initManualEntry = () => {
-    const now = new Date();
-    const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-    setManualStartTime(localIso);
-    setManualEndTime(localIso);
+    setManualTimesFor('feeding', toLocalISO(Date.now()));
     setManualType('feeding');
     setManualDetails({ feedingType: 'bottle', foods: [] }); // Default to bottle
     setShowManualModal(true);
   };
 
   const selectManualType = (type: ActivityType) => {
+    const wasPointEvent = manualType === 'diaper' || manualType === 'solids';
+    // A point event only shows one time field (the start), so carry that over.
+    setManualTimesFor(type, wasPointEvent ? manualStartTime : manualEndTime);
     setManualType(type);
     setManualDetails(
       type === 'feeding' ? { feedingType: 'bottle' } :
@@ -537,9 +571,11 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                       inputMode="decimal"
                       pattern="[0-9]*"
                       placeholder="ml" 
+                      enterKeyHint="done"
                       value={appState.activeTimer.details?.amountMl || ''}
                       className="w-24 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
-                      onChange={(e) => updateActiveDetails({ amountMl: parseInt(e.target.value) || 0, feedingType: 'bottle' })}
+                      onChange={(e) => updateActiveDetails({ amountMl: parseMlInput(e.target.value), feedingType: 'bottle' })}
+                      onKeyDown={blurOnEnter}
                     />
                     <span className="text-slate-500 dark:text-slate-400 font-medium">ml</span>
                   </div>
@@ -651,7 +687,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
         {/* Edit Active Timer Modal */}
         {showActiveEditModal && (
-            <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowActiveEditModal(false)}>
+            <div className="modal-backdrop items-center p-4" onClick={() => setShowActiveEditModal(false)}>
                 <div className="modal-sheet bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] overflow-hidden p-6" onClick={e => e.stopPropagation()}>
                     <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-4">編輯開始時間</h3>
                     <div className="space-y-4">
@@ -925,9 +961,12 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
       {/* Manual Entry Modal */}
       {showManualModal && (
-        <div className="modal-backdrop fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowManualModal(false)}>
+        <div className="modal-backdrop pt-3 sm:items-center sm:p-4" onClick={() => setShowManualModal(false)}>
            <div 
-             className="modal-sheet bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-[2rem] sm:rounded-[2rem] overflow-hidden animate-slide-up sm:animate-fade-in flex flex-col max-h-[90vh]"
+             role="dialog"
+             aria-modal="true"
+             aria-label="補登紀錄"
+             className="modal-sheet bg-white dark:bg-slate-900 w-full sm:max-w-sm rounded-t-[2rem] sm:rounded-[2rem] overflow-hidden animate-slide-up sm:animate-fade-in"
              onClick={e => e.stopPropagation()}
            >
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
@@ -935,7 +974,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                  <button onClick={() => setShowManualModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium">取消</button>
               </div>
               
-               <div className="p-6 space-y-6 overflow-y-auto w-full">
+               <div className="modal-body p-5 space-y-6 w-full">
                  {/* Type Selector */}
                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-wrap">
                     {['feeding', 'sleep', 'diaper', 'solids'].map((t) => (
@@ -980,7 +1019,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                          </div>}
                      </div>
                  ) : (
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-1">
                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">開始時間</label>
                            <input 
@@ -1073,8 +1112,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                               inputMode="numeric"
                               min="0"
                               max="2000"
+                              enterKeyHint="done"
                               value={manualDetails.amountMl ?? ''}
-                              onChange={e => setManualDetails(previous => ({ ...previous, amountMl: e.target.value ? Number(e.target.value) : undefined }))}
+                              onChange={e => setManualDetails(previous => ({ ...previous, amountMl: parseMlInput(e.target.value) }))}
+                              onKeyDown={blurOnEnter}
                               placeholder="輸入份量"
                               className="w-full rounded-xl border border-orange-200 bg-orange-50/50 p-3 pe-12 text-base font-bold text-slate-800 dark:border-orange-900 dark:bg-orange-950/20 dark:text-white"
                             />
@@ -1149,8 +1190,10 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                          inputMode="numeric"
                          min="0"
                          max="2000"
+                         enterKeyHint="done"
                          value={manualDetails.urineMl ?? ''}
-                         onChange={e => setManualDetails(previous => ({ ...previous, urineMl: e.target.value ? Number(e.target.value) : undefined }))}
+                         onChange={e => setManualDetails(previous => ({ ...previous, urineMl: parseMlInput(e.target.value) }))}
+                         onKeyDown={blurOnEnter}
                          placeholder="輸入尿量"
                          className="w-full rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 pe-12 text-base font-bold text-slate-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-white"
                        />
@@ -1227,10 +1270,12 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                                       type="number" 
                                       inputMode="decimal"
                                       pattern="[0-9]*"
+                                      enterKeyHint="done"
                                       placeholder="份量" 
-                                      value={manualDetails.amountMl || ''}
+                                      value={manualDetails.amountMl ?? ''}
                                       className="w-24 p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-center font-mono text-lg"
-                                      onChange={e => setManualDetails(p => ({ ...p, amountMl: parseInt(e.target.value) || 0, feedingType: 'bottle' }))}
+                                      onChange={e => setManualDetails(p => ({ ...p, amountMl: parseMlInput(e.target.value), feedingType: 'bottle' }))}
+                                      onKeyDown={blurOnEnter}
                                     />
                                     <span className="text-slate-500 dark:text-slate-400 text-sm">ml</span>
                                   </div>
@@ -1265,7 +1310,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                  )}
               </div>
               
-              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mt-auto shrink-0 pb-8">
+              <div className="modal-footer">
                  <button 
                    onClick={handleManualSubmit}
                    className="w-full py-3 bg-slate-800 dark:bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-900 dark:hover:bg-slate-600 transition-colors shadow-lg"
