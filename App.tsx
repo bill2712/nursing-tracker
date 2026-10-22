@@ -4,6 +4,7 @@ import Tracker from './components/Tracker';
 import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, HeartIcon, BabyIcon } from './components/Icons';
 import { INITIAL_VACCINES, INITIAL_MILESTONES } from './data/healthData';
 import { ToastHost } from './components/Toast';
+import { MODAL_ROOT_ID } from './components/ModalPortal';
 
 const pageLoaders = {
   history: () => import('./components/History'),
@@ -295,6 +296,8 @@ const App: React.FC = () => {
           </nav>
           <ToastHost />
       </div>
+      {/* Modals render here, outside the scrolling area and above the nav bar. */}
+      <div id={MODAL_ROOT_ID} className="modal-root" />
     </div>
   );
 };

@@ -13,6 +13,7 @@ interface HistoryProps {
 
 import { saveLog, removeLog } from '../services/logWrites';
 import { showToast, vibrate } from './Toast';
+import ModalPortal from './ModalPortal';
 
 const DAYS_PER_PAGE = 7;
 
@@ -406,6 +407,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
 
       {/* Export Options Modal */}
       {showExportModal && (
+          <ModalPortal>
           <div className="modal-backdrop items-center p-4" onClick={() => setShowExportModal(false)}>
               <div className="modal-sheet max-w-sm rounded-3xl" onClick={e => e.stopPropagation()}>
                   <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
@@ -443,10 +445,12 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
                   </div>
               </div>
           </div>
+          </ModalPortal>
       )}
 
       {/* Full Edit/Create Modal */}
       {editingLog && (
+        <ModalPortal>
         <div className="modal-backdrop pt-3 sm:items-center sm:p-4" onClick={() => setEditingLog(null)}>
           <div role="dialog" aria-modal="true" aria-label={isCreating ? '新增紀錄' : '編輯紀錄'} className="modal-sheet sm:max-w-sm sm:rounded-3xl" onClick={e => e.stopPropagation()}>
             {/* Mobile Drag Handle */}
@@ -835,6 +839,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { AppState, LogEntry, ActivityType } from '../types';
 import { formatTimer, generateId, formatTimeAgoAbsolute, normalizeMl, getTrackerSummary, getFinishedTimerTimes, parseMlInput, withoutUndefined } from '../utils';
 import { saveLogWithUndo, saveLog } from '../services/logWrites';
 import { showToast, vibrate } from './Toast';
+import ModalPortal from './ModalPortal';
 
 interface TrackerProps {
   appState: AppState;
@@ -687,6 +688,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
         {/* Edit Active Timer Modal */}
         {showActiveEditModal && (
+            <ModalPortal>
             <div className="modal-backdrop items-center p-4" onClick={() => setShowActiveEditModal(false)}>
                 <div className="modal-sheet bg-white dark:bg-slate-900 w-full max-w-sm rounded-[2rem] overflow-hidden p-6" onClick={e => e.stopPropagation()}>
                     <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 mb-4">編輯開始時間</h3>
@@ -710,6 +712,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
                     </div>
                 </div>
             </div>
+            </ModalPortal>
         )}
       </div>
     );
@@ -961,6 +964,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
 
       {/* Manual Entry Modal */}
       {showManualModal && (
+        <ModalPortal>
         <div className="modal-backdrop pt-3 sm:items-center sm:p-4" onClick={() => setShowManualModal(false)}>
            <div 
              role="dialog"
@@ -1320,6 +1324,7 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
               </div>
            </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );
