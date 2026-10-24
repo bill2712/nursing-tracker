@@ -9,9 +9,13 @@ import Timeline from './Timeline';
 interface HistoryProps {
   logs: LogEntry[];
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
+  older?: OlderLogsState;
+  onLoadOlder?: (untilTs?: number) => Promise<void>;
+  getAllLogs?: () => Promise<LogEntry[]>;
 }
 
 import { saveLog, removeLog } from '../services/logWrites';
+import { OlderLogsState } from '../services/olderLogs';
 import { showToast, vibrate } from './Toast';
 import ModalPortal from './ModalPortal';
 
@@ -22,7 +26,7 @@ const blurOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
   if (event.key === 'Enter') event.currentTarget.blur();
 };
 
-const History: React.FC<HistoryProps> = ({ logs }) => {
+const History: React.FC<HistoryProps> = ({ logs, older, onLoadOlder, getAllLogs }) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -38,6 +42,27 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
   useEffect(() => {
     setVisibleDays(DAYS_PER_PAGE);
   }, [filterStart, filterEnd, filterType]);
+
+  // Picking a start date older than what is loaded fetches that range once.
+  useEffect(() => {
+    if (!filterStart || !older || !onLoadOlder || !older.hasMore) return;
+    const startTs = startOfDay(new Date(filterStart + 'T00:00:00')).getTime();
+    if (startTs < older.loadedFrom) onLoadOlder(startTs).catch(() => showToast({ message: '載入舊紀錄失敗，請稍後再試', tone: 'error' }));
+  }, [filterStart, older?.loadedFrom, older?.hasMore]);
+
+  const loadEarlier = () => {
+    onLoadOlder?.().catch(() => showToast({ message: '載入舊紀錄失敗，請稍後再試', tone: 'error' }));
+  };
+
+  // Export everything, not just the days that happen to be loaded.
+  const exportAll = async () => {
+    if (older?.hasMore && getAllLogs) {
+      try { openExportModal(await getAllLogs()); }
+      catch { showToast({ message: '載入全部紀錄失敗，請稍後再試', tone: 'error' }); }
+      return;
+    }
+    openExportModal(logs);
+  };
 
   // Export Modal State
   const [showExportModal, setShowExportModal] = useState(false);
@@ -260,7 +285,7 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
             </button>
             {logs.length > 0 && (
                 <button 
-                    onClick={() => openExportModal(logs)}
+                    onClick={exportAll}
                     className="min-h-10 rounded-xl border border-white/80 bg-white/75 px-3 py-2 text-xs font-bold text-slate-600 shadow-sm transition-colors hover:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                 >
                     匯出
@@ -361,8 +386,11 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
       </div>
 
       {filteredLogs.length === 0 ? (
-        <div className="text-center py-12 text-slate-400 dark:text-slate-600">
-          <p>此期間找不到紀錄。</p>
+        <div className="text-center py-12 text-slate-400 dark:text-slate-600 space-y-3">
+          <p>{older?.loading ? '載入緊舊紀錄…' : '此期間找不到紀錄。'}</p>
+          {older?.hasMore && !older.loading && !filterStart && (
+            <button onClick={loadEarlier} className="w-full rounded-2xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">載入更早紀錄</button>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
@@ -400,6 +428,11 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
               className="w-full rounded-2xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               顯示更早紀錄（尚有 {hiddenDayCount} 日）
+            </button>
+          )}
+          {hiddenDayCount === 0 && older?.hasMore && !filterStart && (
+            <button onClick={loadEarlier} disabled={older.loading} className="w-full rounded-2xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
+              {older.loading ? '載入緊…' : '載入更早紀錄（再多 10 日）'}
             </button>
           )}
         </div>

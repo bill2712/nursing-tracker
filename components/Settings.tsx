@@ -8,21 +8,28 @@ import { db } from '../services/firebase';
 interface SettingsProps {
   appState: AppState;
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
+  getAllLogs?: () => Promise<LogEntry[]>;
 }
 
-const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
+const Settings: React.FC<SettingsProps> = ({ appState, setAppState, getAllLogs }) => {
+  // Backups must include every log, not only the recent days kept live.
+  const allLogs = async () => {
+    if (!getAllLogs) return appState.logs;
+    try { return await getAllLogs(); }
+    catch (e) { console.error(e); alert('載入全部紀錄失敗，請稍後再試。'); throw e; }
+  };
   const [importText, setImportText] = useState('');
   const [showImport, setShowImport] = useState(false);
 
-  const handleExportJson = () => {
-    const data = JSON.stringify(appState.logs);
+  const handleExportJson = async () => {
+    const data = JSON.stringify(await allLogs());
     navigator.clipboard.writeText(data).then(() => {
       alert("資料已複製到剪貼簿！傳送給伴侶。");
     });
   };
 
-  const handleDownloadBackup = () => {
-    const data = JSON.stringify(appState.logs, null, 2);
+  const handleDownloadBackup = async () => {
+    const data = JSON.stringify(await allLogs(), null, 2);
     downloadFile(data, `nurturetrack-backup-${format(new Date(), 'yyyy-MM-dd-HHmm')}.json`, 'application/json');
   };
 
@@ -329,7 +336,7 @@ const Settings: React.FC<SettingsProps> = ({ appState, setAppState }) => {
         
         <div className="ui-card overflow-hidden">
            <button 
-              onClick={() => exportToCSV(appState.logs)}
+              onClick={async () => exportToCSV(await allLogs())}
               className="w-full text-left px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-medium"
            >
               下載 CSV 匯出
