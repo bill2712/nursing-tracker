@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
 import { AppState, LogEntry, ActivityType } from './types';
 import Tracker from './components/Tracker';
 import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, HeartIcon, BabyIcon } from './components/Icons';
@@ -33,7 +33,8 @@ const preloadPages = () => {
 type View = 'tracker' | 'history' | 'analysis' | 'checklist' | 'settings' | 'health' | 'growth';
 
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, doc, setDoc, limit, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, setDoc, where, getDoc } from 'firebase/firestore';
+import { RECENT_CUTOFF, getOlderState, subscribeOlder, loadOlder, loadAllOlder, mergeLogs, OlderLogsState } from './services/olderLogs';
 import { auth, db } from './services/firebase';
 import Login from './components/Login';
 
@@ -90,6 +91,19 @@ const App: React.FC = () => {
 
   const [currentView, setCurrentView] = useState<View>('tracker');
 
+  // Recent logs come from the live listener; older ones are loaded on demand.
+  const recentLogsRef = useRef<LogEntry[]>([]);
+  const [olderState, setOlderState] = useState<OlderLogsState>(getOlderState);
+  const publishLogs = useCallback(() => {
+    const merged = mergeLogs(recentLogsRef.current, getOlderState().logs);
+    setAppState(prev => ({ ...prev, logs: merged }));
+  }, []);
+  useEffect(() => subscribeOlder(() => { setOlderState(getOlderState()); publishLogs(); }), [publishLogs]);
+  const getAllLogs = useCallback(async () => {
+    await loadAllOlder();
+    return mergeLogs(recentLogsRef.current, getOlderState().logs);
+  }, []);
+
   const changeView = (view: View) => {
     setCurrentView(view);
     document.querySelector('.app-main')?.scrollTo({ top: 0 });
@@ -110,10 +124,11 @@ const App: React.FC = () => {
 
     preloadPages();
 
-    // 1. Listen to Logs
-    const q = query(collection(db, 'logs'), orderBy('startTime', 'desc'), limit(5000)); 
+    // 1. Listen to Logs (only the recent days; older logs load on demand)
+    const q = query(collection(db, 'logs'), where('startTime', '>=', RECENT_CUTOFF), orderBy('startTime', 'desc'));
     const unsubLogs = onSnapshot(q, (snapshot) => {
-      const logs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as LogEntry));
+      recentLogsRef.current = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as LogEntry));
+      const logs = mergeLogs(recentLogsRef.current, getOlderState().logs);
       setAppState(prev => ({ 
           ...prev, 
           logs,
@@ -231,13 +246,13 @@ const App: React.FC = () => {
       case 'tracker':
         return <Tracker appState={appState} setAppState={setAppState} />;
       case 'history':
-        return <History logs={appState.logs} setAppState={setAppState} />;
+        return <History logs={appState.logs} setAppState={setAppState} older={olderState} onLoadOlder={loadOlder} getAllLogs={getAllLogs} />;
       case 'analysis':
         return <Analysis appState={appState} />;
       case 'growth':
         return <Growth appState={appState} setAppState={setAppState} />;
       case 'settings':
-        return <Settings appState={appState} setAppState={setAppState} />;
+        return <Settings appState={appState} setAppState={setAppState} getAllLogs={getAllLogs} />;
       case 'health':
         return <Health appState={appState} setAppState={setAppState} />;
       case 'checklist':
