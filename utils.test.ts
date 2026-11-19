@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getFoodIntakeTotals, getGrowthViewMaxAge, getTrackerSummary, getFinishedTimerTimes, getTodayFoodIntakeTotals, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl, parseMlInput, withoutUndefined } from './utils';
+import { getFoodIntakeTotals, getGrowthViewMaxAge, getTrackerSummary, getFinishedTimerTimes, getTodayFoodIntakeTotals, getTodayVolumeTotals, getWhoDatasetKey, normalizeMl, parseMlInput, withoutUndefined, getDefaultEntryTimes } from './utils';
 import type { LogEntry } from './types';
 
 describe('normalizeMl', () => {
@@ -147,5 +147,18 @@ describe('withoutUndefined', () => {
   it('drops undefined fields so Firestore accepts the write', () => {
     expect(withoutUndefined({ amountMl: undefined, feedingType: 'bottle', notes: '' }))
       .toEqual({ feedingType: 'bottle', notes: '' });
+  });
+});
+
+describe('getDefaultEntryTimes', () => {
+  const end = new Date(2026, 10, 19, 10, 0).getTime();
+
+  it('gives timed entries a typical length so end is after start', () => {
+    expect(getDefaultEntryTimes('feeding', end)).toEqual({ startTime: end - 20 * 60000, endTime: end });
+    expect(getDefaultEntryTimes('sleep', end)).toEqual({ startTime: end - 10 * 60000, endTime: end });
+  });
+
+  it('keeps point events at a single time', () => {
+    expect(getDefaultEntryTimes('diaper', end)).toEqual({ startTime: end, endTime: end });
   });
 });

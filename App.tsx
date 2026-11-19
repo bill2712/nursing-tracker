@@ -5,6 +5,7 @@ import { ClockIcon, ListIcon, BarChartIcon, SettingsIcon, HeartIcon, BabyIcon } 
 import { INITIAL_VACCINES, INITIAL_MILESTONES } from './data/healthData';
 import { ToastHost } from './components/Toast';
 import { MODAL_ROOT_ID } from './components/ModalPortal';
+import { startUpdateCheck } from './services/updateCheck';
 
 const pageLoaders = {
   history: () => import('./components/History'),
@@ -90,6 +91,10 @@ const App: React.FC = () => {
   }, [appState.darkMode, appState.reminders]);
 
   const [currentView, setCurrentView] = useState<View>('tracker');
+
+  // Offer a reload when a newer version has been deployed (long-open desktop tabs).
+  const [updateReady, setUpdateReady] = useState(false);
+  useEffect(() => startUpdateCheck(() => setUpdateReady(true)), []);
 
   // Recent logs come from the live listener; older ones are loaded on demand.
   const recentLogsRef = useRef<LogEntry[]>([]);
@@ -265,6 +270,14 @@ const App: React.FC = () => {
   return (
     <div className={`app-shell h-[100dvh] w-full flex flex-col mx-auto max-w-lg sm:my-4 sm:h-[calc(100dvh-2rem)] overflow-hidden relative ${appState.darkMode ? 'dark' : ''}`}>
       <div className="app-frame flex flex-col h-full text-slate-900 dark:text-slate-100 transition-colors duration-200">
+          {updateReady && (
+            <button
+              onClick={() => window.location.reload()}
+              className="update-banner shrink-0"
+            >
+              有新版本，撳此重新載入
+            </button>
+          )}
           <main className="app-main flex-1 overflow-y-auto no-scrollbar relative">
              <Suspense fallback={<div className="flex min-h-full items-center justify-center p-6"><div className="spinner" aria-label="載入頁面中" /></div>}>
                {renderView()}

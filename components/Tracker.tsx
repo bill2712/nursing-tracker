@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MilkIcon, PencilIcon, PumpIcon, DropletIcon } from './Icons';
 import { AppState, LogEntry, ActivityType } from '../types';
-import { formatTimer, generateId, formatTimeAgoAbsolute, normalizeMl, getTrackerSummary, getFinishedTimerTimes, parseMlInput, withoutUndefined } from '../utils';
+import { formatTimer, generateId, formatTimeAgoAbsolute, normalizeMl, getTrackerSummary, getFinishedTimerTimes, parseMlInput, withoutUndefined, getDefaultEntryTimes } from '../utils';
 import { saveLogWithUndo, saveLog } from '../services/logWrites';
 import { showToast, vibrate } from './Toast';
 import ModalPortal from './ModalPortal';
@@ -396,17 +396,12 @@ const Tracker: React.FC<TrackerProps> = ({ appState }) => {
     showToast({ message: '已補登紀錄' });
   };
 
-  // Start and end used to both default to "now", so saving a feed straight
-  // away failed with "end must be after start". Give timed entries a typical
-  // length instead; point events (diaper, solids) just use the time.
-  const DEFAULT_MANUAL_MINUTES: Partial<Record<ActivityType, number>> = { feeding: 20, sleep: 10 };
-
   const setManualTimesFor = (type: ActivityType, endIso: string) => {
     const end = new Date(endIso).getTime();
-    const minutes = DEFAULT_MANUAL_MINUTES[type];
     if (!Number.isFinite(end)) return;
+    const { startTime } = getDefaultEntryTimes(type, end);
     setManualEndTime(endIso);
-    setManualStartTime(minutes ? toLocalISO(end - minutes * 60 * 1000) : endIso);
+    setManualStartTime(toLocalISO(startTime));
   };
 
   const initManualEntry = () => {
