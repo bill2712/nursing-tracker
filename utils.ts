@@ -1,5 +1,5 @@
 import { format, differenceInMinutes, differenceInCalendarDays, startOfDay, startOfWeek } from 'date-fns';
-import { ActiveTimer, LogEntry } from './types';
+import { ActiveTimer, ActivityType, LogEntry } from './types';
 
 export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
@@ -56,6 +56,16 @@ export const normalizeMl = (value: unknown, max = 2000): number | null => {
   const amount = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
   if (!Number.isFinite(amount) || amount <= 0 || amount > max) return null;
   return Math.round(amount);
+};
+
+// New manual entries: timed activities get a typical length ending at `endMs`,
+// so saving straight away doesn't fail with "end must be after start". Point
+// events (diaper, solids) just use the time.
+export const DEFAULT_ENTRY_MINUTES: Partial<Record<ActivityType, number>> = { feeding: 20, sleep: 10, pumping: 20 };
+
+export const getDefaultEntryTimes = (type: ActivityType, endMs: number) => {
+  const minutes = DEFAULT_ENTRY_MINUTES[type];
+  return { startTime: minutes ? endMs - minutes * 60 * 1000 : endMs, endTime: endMs };
 };
 
 // Value typed into an ml box. An empty box means "no amount" (undefined), not 0.

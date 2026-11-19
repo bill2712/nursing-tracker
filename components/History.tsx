@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { zhHK } from 'date-fns/locale';
 import { AppState, LogEntry, ActivityType } from '../types';
-import { formatDuration, exportToCSV, ExportColumn, generateId, parseMlInput } from '../utils';
+import { formatDuration, exportToCSV, ExportColumn, generateId, parseMlInput, getDefaultEntryTimes } from '../utils';
 import { TrashIcon, MilkIcon, BabyIcon, PumpIcon, FoodIcon, ListIcon, CalendarIcon, DropletIcon, ColicIcon } from './Icons';
 import Timeline from './Timeline';
 
@@ -138,20 +138,37 @@ const History: React.FC<HistoryProps> = ({ logs, older, onLoadOlder, getAllLogs 
   }, []);
 
   const handleCreateClick = () => {
-      const now = Date.now();
+      // Start and end used to both be "now", so adding a feed failed with
+      // "end must be after start". Default to a typical feed length instead.
+      const { startTime, endTime } = getDefaultEntryTimes('feeding', Date.now());
       const newLog: LogEntry = {
           id: generateId(),
           type: 'feeding',
-          startTime: now,
-          endTime: now,
+          startTime,
+          endTime,
           details: {}
       };
       setEditingLog(newLog);
       setIsCreating(true);
-      setEditStartTime(toLocalISO(now));
-      setEditEndTime(toLocalISO(now));
+      setEditStartTime(toLocalISO(startTime));
+      setEditEndTime(toLocalISO(endTime));
       setEditType('feeding');
       setEditDetails({});
+  };
+
+  // Switching to a timed type: if the times can't be saved as they are (no end,
+  // or end not after start), give it a default length ending at the shown time.
+  const selectEditType = (type: ActivityType) => {
+      setEditType(type);
+      const isPoint = type === 'diaper' || type === 'solids';
+      if (isPoint) return;
+      const start = new Date(editStartTime).getTime();
+      const end = editEndTime ? new Date(editEndTime).getTime() : NaN;
+      if (Number.isFinite(end) && end > start) return;
+      const anchor = Number.isFinite(start) ? start : Date.now();
+      const times = getDefaultEntryTimes(type, anchor);
+      setEditStartTime(toLocalISO(times.startTime));
+      setEditEndTime(toLocalISO(times.endTime));
   };
 
   const saveEdit = () => {
@@ -503,7 +520,7 @@ const History: React.FC<HistoryProps> = ({ logs, older, onLoadOlder, getAllLogs 
                       <button 
                         key={t}
                         onClick={() => {
-                            setEditType(t as ActivityType);
+                            selectEditType(t as ActivityType);
                             // Set default details based on type
                             if (t === 'diaper' && !editDetails.diaperState) {
                                 setEditDetails(p => ({...p, diaperState: 'wet'}));
